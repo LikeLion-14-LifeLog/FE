@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("./assets/fonts/PretendardVariable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Pretendard", sans-serif;
+
+  /* Brand */
+  --color-brand: #27b8a2;
+  --color-brand-strong: #148f7e;
+  --color-brand-soft: #eaf8f5;
+
+  /* Text */
+  --color-text-primary: #17211f;
+  --color-text-secondary: #65726e;
+  --color-text-muted: #899591;
+  --color-text-disabled: #98a39f;
+
+  /* Background */
+  --color-bg-page: #ffffff;
+  --color-bg-section: #f2f5f4;
+  --color-bg-subtle: #f6f8f7;
+  --color-bg-muted: #f9fbfa;
+
+  /* Border */
+  --color-border: #dce4e1;
+  --color-border-strong: #aeb9b5;
+
+  /* Status */
+  --color-error: #c83d3d;
+  --color-success: #148f7e;
+}
