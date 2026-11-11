@@ -1,4 +1,5 @@
 import { Outlet, useMatches } from "react-router-dom";
+import Header from "../components/Header";
 
 export interface PageTitleHandle {
   /** 영어 제목 (상단 작은 라벨) */
@@ -23,8 +24,7 @@ const MainLayout = () => {
 
   return (
     <div className="min-h-screen bg-bg-page font-sans text-text-primary">
-      {/* 헤더 자리 (추가 예정) */}
-      <div className="h-16" aria-hidden />
+      <Header />
 
       {/* 공통 컨테이너 */}
       <main className="mx-auto w-full max-w-[1560px] px-4 pt-[58px] pb-12 md:px-6 2xl:px-0">
