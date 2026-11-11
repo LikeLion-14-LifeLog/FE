@@ -1,6 +1,9 @@
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import LoginPage from "@/pages/Login/LoginPage";
+import SignupPage from "@/pages/Login/SignupPage";
+import PasswordResetPage from "@/pages/Login/PasswordResetPage";
+import WelcomePage from "@/pages/Login/WelcomePage";
 import MainPage from "@/pages/Main/components/MainPage";
 import CareerPage from "@/pages/Career/CareerPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
@@ -54,6 +57,9 @@ const router = createBrowserRouter([
     ],
   },
   { path: "/login", element: <LoginPage /> },
+  { path: "/signup", element: <SignupPage /> },
+  { path: "/password-reset", element: <PasswordResetPage /> },
+  { path: "/welcome", element: <WelcomePage /> },
   { path: "*", element: <NotFoundPage /> },
 ]);
 

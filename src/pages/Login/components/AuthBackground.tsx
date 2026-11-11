@@ -3,6 +3,25 @@ import GlowEllipse from "./GlowEllipse";
 
 type AuthBackgroundProps = {
   children?: ReactNode;
+  /** 상단 헤더 (배경 위, 콘텐츠 영역 위에 렌더링) */
+  header?: ReactNode;
+  /** 회원가입 화면은 가운데 Glow blob 두 개의 위치가 조금 다르다 */
+  variant?: "default" | "signup";
+};
+
+const BLOBS = {
+  default: [
+    { size: 460, color: "#ccfbf1", opacity: 0.45, left: 1219, top: 571 },
+    { size: 380, color: "#5eead4", opacity: 0.32, left: 980, top: 420 },
+    { size: 420, color: "#2dd4bf", opacity: 0.38, left: 560, top: 250 },
+    { size: 520, color: "#99f6e4", opacity: 0.35, left: 439, top: 251 },
+  ],
+  signup: [
+    { size: 520, color: "#99f6e4", opacity: 0.35, left: 439, top: 251 },
+    { size: 460, color: "#ccfbf1", opacity: 0.45, left: 1219, top: 571 },
+    { size: 420, color: "#2dd4bf", opacity: 0.38, left: 559, top: 185 },
+    { size: 380, color: "#5eead4", opacity: 0.32, left: 979, top: 355 },
+  ],
 };
 
 const Dot = ({ left, top }: { left: number; top: number }) => (
@@ -12,9 +31,13 @@ const Dot = ({ left, top }: { left: number; top: number }) => (
   />
 );
 /*  로그인/회원가입 공통 배경 */
-const AuthBackground = ({ children }: AuthBackgroundProps) => {
+const AuthBackground = ({
+  children,
+  header,
+  variant = "default",
+}: AuthBackgroundProps) => {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-white font-sans">
       <div
         aria-hidden
         className="pointer-events-none absolute top-16 left-1/2 h-[1014px] w-[1918px] -translate-x-1/2"
@@ -23,30 +46,9 @@ const AuthBackground = ({ children }: AuthBackgroundProps) => {
             "radial-gradient(ellipse 1200px 704.17px at 959px 300.44px, rgba(240,253,250,1) 0%, rgba(240,253,250,0) 70%)",
         }}
       >
-        <GlowEllipse
-          size={460}
-          color="#ccfbf1"
-          opacity={0.45}
-          style={{ left: 1219, top: 571 }}
-        />
-        <GlowEllipse
-          size={380}
-          color="#5eead4"
-          opacity={0.32}
-          style={{ left: 980, top: 420 }}
-        />
-        <GlowEllipse
-          size={420}
-          color="#2dd4bf"
-          opacity={0.38}
-          style={{ left: 560, top: 250 }}
-        />
-        <GlowEllipse
-          size={520}
-          color="#99f6e4"
-          opacity={0.35}
-          style={{ left: 439, top: 251 }}
-        />
+        {BLOBS[variant].map(({ left, top, ...blob }) => (
+          <GlowEllipse key={`${left}-${top}`} {...blob} style={{ left, top }} />
+        ))}
 
         <div className="absolute top-[151px] left-[599px] size-[720px]">
           <div className="absolute top-20 left-20 size-[560px] rounded-full border border-dashed border-[rgba(13,148,136,0.22)]">
@@ -64,9 +66,11 @@ const AuthBackground = ({ children }: AuthBackgroundProps) => {
         </p>
       </div>
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center px-4 pt-8 pb-6">
+      {header && <div className="relative z-20 shrink-0">{header}</div>}
+
+      <main className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 pt-8 pb-6">
         {children}
-      </div>
+      </main>
     </div>
   );
 };
