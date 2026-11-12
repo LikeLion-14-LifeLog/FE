@@ -1,6 +1,6 @@
-
 import { Link } from "react-router-dom";
 import EmployeeCardVisual from "./EmployeeCardVisual";
+import SectionScrollLink from "./SectionScrollLink";
 
 export default function HeroSection() {
   return (
@@ -39,15 +39,7 @@ export default function HeroSection() {
         </p>
       </div>
 
-      <a
-        href="#value"
-        className="absolute bottom-5 flex flex-col items-center gap-1 text-[10px] text-text-muted"
-      >
-        서비스 알아보기
-        <span aria-hidden="true" className="text-base">
-          ↓
-        </span>
-      </a>
+      <SectionScrollLink label="서비스 알아보기" target="value" />
     </section>
   );
 }

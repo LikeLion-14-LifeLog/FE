@@ -1,7 +1,7 @@
-
 import listChecks from "@/assets/icons/listChecks.svg";
 import chartNoAxesCombined from "@/assets/icons/chartNoAxesCombined.svg";
 import target from "@/assets/icons/target.svg";
+import SectionScrollLink from "./SectionScrollLink";
 
 const steps = [
   {
@@ -94,15 +94,7 @@ export default function StepsSection() {
         </p>
       </div>
 
-      <a
-        href="#hero"
-        className="absolute bottom-5 flex flex-col items-center gap-1 text-[10px] text-text-muted"
-      >
-        처음으로
-        <span aria-hidden="true" className="text-base">
-          ↑
-        </span>
-      </a>
+      <SectionScrollLink label="처음으로" target="hero" direction="up" />
     </section>
   );
 }
