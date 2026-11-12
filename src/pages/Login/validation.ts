@@ -14,6 +14,8 @@ export const MESSAGES = {
   termsRequired: "회원가입을 위해 필수 약관에 동의해 주세요.",
   emailNotRegistered: "가입되지 않은 이메일입니다. 회원가입 후 로그인해 주세요.",
   emailAlreadyRegistered: "이미 가입된 이메일입니다.",
+  signupSaveFailed:
+    "회원가입 정보를 저장하지 못했어요. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.",
 };
 
 /** 로그인 성공 화면으로 넘기는 정보 */

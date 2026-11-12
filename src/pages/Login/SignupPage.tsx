@@ -24,6 +24,7 @@ const SignupPage = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   const nicknameValid = nickname.trim().length >= 2;
   const passwordMatch =
@@ -46,10 +47,14 @@ const SignupPage = () => {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitted(true);
+    setSaveError(undefined);
     if (Object.values(errors).some(Boolean)) return;
 
     // TODO: 회원가입 API 연동 (agreeMarketing 포함)
-    saveAccount(email, nickname.trim());
+    if (!saveAccount(email, nickname.trim())) {
+      setSaveError(MESSAGES.signupSaveFailed);
+      return;
+    }
     const state: WelcomeState = {
       nickname: nickname.trim(),
       email: email.trim(),
@@ -152,6 +157,14 @@ const SignupPage = () => {
           </AuthCheckbox>
         </div>
 
+        {saveError && (
+          <p
+            role="alert"
+            className="pb-3 text-center text-[12px] leading-[18px] font-semibold text-[#e11d48]"
+          >
+            {saveError}
+          </p>
+        )}
         <PrimaryButton type="submit">회원가입 완료</PrimaryButton>
 
         <p className="mt-4 flex h-[34.5px] items-start justify-center gap-[25px] pt-[15px] text-[13px] leading-[19.5px]">
