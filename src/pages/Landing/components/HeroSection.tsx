@@ -30,8 +30,12 @@ export default function HeroSection() {
           </span>
         </Link>
 
-        <p className="mt-5 text-[9px] tracking-[-0.2px] text-text-muted">
-          공공 고용 데이터 기반　·　3분 진단　·　무료 이용
+        <p className="mt-5 flex items-center gap-2 text-[9px] tracking-[-0.2px] text-text-muted">
+          <span>공공 고용 데이터 기반</span>
+          <span>·</span>
+          <span>3분 진단</span>
+          <span>·</span>
+          <span>무료 이용</span>
         </p>
       </div>
 
