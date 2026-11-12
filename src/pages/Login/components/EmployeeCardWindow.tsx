@@ -1,10 +1,7 @@
-/** 기준 디자인 크기 (Figma 3:56 Window) */
 const BASE = 366;
 
 type EmployeeCardWindowProps = {
-  /** 원형 창 지름(px). 로그인 366, 회원가입 200 */
   size?: number;
-  /** 사원증 위에 표시할 이름/이메일 (로그인 성공 화면) */
   name?: string;
   email?: string;
 };
@@ -16,7 +13,6 @@ const Dot = ({ left, top }: { left: number; top: number }) => (
   />
 );
 
-/** 사원증이 걸린 원형 창 — Figma 3:56 / 3:331 / 3:762 */
 const EmployeeCardWindow = ({
   size = BASE,
   name,
@@ -32,9 +28,8 @@ const EmployeeCardWindow = ({
           "radial-gradient(circle closest-side, rgba(94,234,212,0.6) 0%, rgba(153,246,228,0.35) 55%, rgba(240,253,250,0) 100%), rgb(240,252,250)",
       }}
     >
-      {/* 366px 기준으로 그린 뒤 size에 맞게 축소 */}
       <div
-        className="absolute top-0 left-0 origin-top-left"
+        className="absolute -top-[1.5px] -left-[1.5px] origin-top-left"
         style={{
           width: BASE,
           height: BASE,

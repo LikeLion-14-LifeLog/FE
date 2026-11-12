@@ -12,6 +12,8 @@ export const MESSAGES = {
   passwordMismatch: "비밀번호가 일치하지 않습니다. 다시 확인해 주세요.",
   nicknameRequired: "닉네임을 2자 이상 입력해 주세요.",
   termsRequired: "회원가입을 위해 필수 약관에 동의해 주세요.",
+  emailNotRegistered: "가입되지 않은 이메일입니다. 회원가입 후 로그인해 주세요.",
+  emailAlreadyRegistered: "이미 가입된 이메일입니다.",
 };
 
 /** 로그인 성공 화면으로 넘기는 정보 */

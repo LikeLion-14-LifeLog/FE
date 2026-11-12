@@ -4,14 +4,11 @@ type AuthCheckboxProps = {
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: ReactNode;
-  /** 로그인 16px(md) / 회원가입 약관 15px(sm) */
   size?: "md" | "sm";
-  /** 필수 항목 미동의 오류 */
   invalid?: boolean;
   className?: string;
 };
 
-/** 민트 체크박스 — Figma 3:121 / 3:410 */
 const AuthCheckbox = ({
   checked,
   onChange,

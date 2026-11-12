@@ -3,15 +3,12 @@ import EmployeeCardWindow from "./EmployeeCardWindow";
 
 type AuthCapsuleProps = {
   children: ReactNode;
-  /** 원형 창 크기 — 366(기본) / 200(회원가입) */
   windowSize?: number;
   cardName?: string;
   cardEmail?: string;
-  /** 넘기면 본문이 <form>으로 렌더링된다 */
   onSubmit?: FormEventHandler<HTMLFormElement>;
 };
 
-/** 세로 캡슐 카드 — Figma 3:55 */
 const AuthCapsule = ({
   children,
   windowSize = 366,

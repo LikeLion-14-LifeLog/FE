@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import AuthBackground from "./components/AuthBackground";
 import AuthCapsule from "./components/AuthCapsule";
-import AuthHeader from "./components/AuthHeader";
+import Header from "@/components/Header";
 import AuthInput from "./components/AuthInput";
 import SecondaryButton from "./components/SecondaryButton";
 import { MESSAGES, isValidEmail } from "./validation";
@@ -25,7 +25,7 @@ const PasswordResetPage = () => {
   };
 
   return (
-    <AuthBackground header={<AuthHeader />}>
+    <AuthBackground header={<Header />}>
       <AuthCapsule onSubmit={handleSubmit}>
         <div className="flex flex-col items-center gap-2 pb-6 text-center">
           <h1 className="text-[22px] leading-[26px] font-bold text-[#0f172a]">
@@ -43,7 +43,7 @@ const PasswordResetPage = () => {
           label="이메일 주소"
           type="email"
           autoComplete="email"
-          placeholder="jihun.kim@email.com"
+          placeholder="@email.com"
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
@@ -58,18 +58,15 @@ const PasswordResetPage = () => {
 
         <p
           role="status"
-          className={`pt-6 pb-[18px] text-center text-[12px] ${sent ? "font-semibold text-[#0d9488]" : "text-[#94a3b8]"}`}
+          className={`pt-4 pb-[18px] text-center text-[12px] leading-normal ${sent ? "font-semibold text-[#0d9488]" : "text-[#94a3b8]"}`}
         >
           {sent
             ? "재설정 링크를 보냈어요. 메일함을 확인해 주세요."
             : "메일이 오지 않으면 스팸함을 확인해 주세요."}
         </p>
 
-        <div className="flex justify-center border-t border-[#f8fafc] pt-[15px]">
-          <Link
-            to="/login"
-            className="text-[13px] font-bold text-[#0d9488]"
-          >
+        <div className="flex h-[36.5px] justify-center border-t border-[#f8fafc] pt-[15px]">
+          <Link to="/login" className="text-[13px] font-bold text-[#0d9488]">
             ← 로그인으로 돌아가기
           </Link>
         </div>

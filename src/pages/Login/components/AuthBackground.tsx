@@ -3,9 +3,7 @@ import GlowEllipse from "./GlowEllipse";
 
 type AuthBackgroundProps = {
   children?: ReactNode;
-  /** 상단 헤더 (배경 위, 콘텐츠 영역 위에 렌더링) */
   header?: ReactNode;
-  /** 회원가입 화면은 가운데 Glow blob 두 개의 위치가 조금 다르다 */
   variant?: "default" | "signup";
 };
 

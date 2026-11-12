@@ -2,14 +2,11 @@ import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 
 type AuthInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   label: string;
-  /** 입력창 오른쪽 상태 표시 (예: ✓ 사용 가능) */
   status?: ReactNode;
   error?: string;
-  /** 입력창 높이 — 로그인 44px(md), 회원가입 42px(sm) */
   size?: "md" | "sm";
 };
 
-/** 라벨 + 글래스 입력창 — Figma 3:106 / 3:380 */
 const AuthInput = ({
   label,
   status,
