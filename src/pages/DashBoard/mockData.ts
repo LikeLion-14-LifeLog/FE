@@ -6,7 +6,7 @@ import type { DashboardData } from "@/types/dashboard";
 
 /** 진단 완료 상태 */
 export const MOCK_DASHBOARD: DashboardData = {
-  profile: { name: "장현서", major: "AI응용학과" },
+  major: "AI응용학과",
   diagnosis: {
     expectedSalary: 3600,
     topPercent: 35,
@@ -54,7 +54,7 @@ export const MOCK_DASHBOARD: DashboardData = {
 
 /** 진단 전 상태 (빈 화면 확인용) */
 export const MOCK_DASHBOARD_EMPTY: DashboardData = {
-  profile: { name: "장현서", major: "AI응용학과" },
+  major: "AI응용학과",
   diagnosis: null,
   recommendedJobs: [],
   totalJobCount: 0,

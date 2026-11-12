@@ -16,7 +16,7 @@ const HERO_BACKGROUND =
 const DiagnosisSummary = ({
   profile,
   diagnosis,
-  editSpecPath = "/",
+  editSpecPath = "/spec",
 }: DiagnosisSummaryProps) => {
   const { expectedSalary, topPercent, specs } = diagnosis;
 

@@ -24,13 +24,15 @@ export type JobPosting = {
 
 /** 대시보드 – 사원증에 표시할 사용자 정보 */
 export type CardProfile = {
-  name: string;
-  /** 학과 (예: "AI응용학과") */
+  /** 로그인한 사용자 닉네임 */
+  nickname: string;
+  /** 학과 */
   major: string;
 };
 
 export type DashboardData = {
-  profile: CardProfile;
+  /** 학과 (사원증 표시용) */
+  major: string;
   /** 진단 전이면 null */
   diagnosis: DiagnosisResult | null;
   recommendedJobs: JobPosting[];
