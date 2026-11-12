@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import { useCurrentUser } from "@/store/authStore";
 
 const menus = [
   { name: "대시보드", path: "/dashboard" },
@@ -9,6 +10,8 @@ const menus = [
 ];
 
 export default function Header() {
+  const user = useCurrentUser();
+
   return (
     <header className="w-full border-b border-border bg-white">
       <div className="mx-auto flex h-15 w-full max-w-7xl items-center gap-9 px-6">
@@ -38,20 +41,34 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-5 text-[13px] font-medium">
-          <Link
-            to="/login"
-            className="text-text-primary transition-colors hover:text-brand"
-          >
-            로그인
-          </Link>
-          <Link
-            to="/signup"
-            className="rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-strong"
-          >
-            회원가입
-          </Link>
-        </div>
+        {user ? (
+          <div className="flex h-8 shrink-0 items-center gap-2">
+            <img
+              src="/usericon.svg"
+              alt=""
+              className="size-8 shrink-0"
+              draggable={false}
+            />
+            <span className="text-[14px] leading-[21px] font-bold whitespace-nowrap text-[#1e293b]">
+              {user.nickname}
+            </span>
+          </div>
+        ) : (
+          <div className="flex shrink-0 items-center gap-5 text-[13px] font-medium">
+            <Link
+              to="/login"
+              className="text-text-primary transition-colors hover:text-brand"
+            >
+              로그인
+            </Link>
+            <Link
+              to="/signup"
+              className="rounded-lg bg-brand px-4 py-2 text-white transition-colors hover:bg-brand-strong"
+            >
+              회원가입
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );

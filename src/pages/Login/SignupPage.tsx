@@ -13,6 +13,7 @@ import {
   type WelcomeState,
 } from "./validation";
 import { isRegistered, saveAccount } from "./mockAccounts";
+import { login } from "@/store/authStore";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ const SignupPage = () => {
       nickname: nickname.trim(),
       email: email.trim(),
     };
+    login(state);
     navigate("/welcome", { state });
   };
 
