@@ -8,7 +8,7 @@ export default function LandingPage() {
     <div className="flex h-dvh flex-col overflow-hidden bg-bg-page">
       <Header />
 
-      <main className="min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth">
+      <main className="min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto">
         <HeroSection />
         <ValueSection />
         <StepsSection />

@@ -1,5 +1,6 @@
 import checkIcon from "@/assets/icons/check.svg";
 import salaryPreview from "@/assets/images/salaryPreview.svg";
+import SectionScrollLink from "./SectionScrollLink";
 
 const badges = ["48만 건 패널 데이터", "120개 직무 세분화"];
 
@@ -36,7 +37,13 @@ export default function ValueSection() {
                 className="flex items-center gap-2 rounded-full border-2 border-brand/15 bg-brand-soft/50 px-3 py-1.5 text-[11px] font-semibold text-brand-strong"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-brand/60">
-                  <img src={checkIcon} alt="" className="h-3 w-3" />
+                  <span
+                    aria-hidden="true"
+                    className="h-3 w-3 bg-brand-strong"
+                    style={{
+                      mask: `url("${checkIcon}") center / contain no-repeat`,
+                    }}
+                  />
                 </span>
                 {label}
               </div>
@@ -51,15 +58,7 @@ export default function ValueSection() {
         />
       </div>
 
-      <a
-        href="#steps"
-        className="absolute bottom-5 flex flex-col items-center gap-1 text-[10px] text-text-muted"
-      >
-        진단 과정 보기
-        <span aria-hidden="true" className="text-base">
-          ↓
-        </span>
-      </a>
+      <SectionScrollLink label="진단 과정 보기" target="steps" />
     </section>
   );
 }
