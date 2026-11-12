@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import checkIcon from "@/assets/icons/check.svg";
 import salaryPreview from "@/assets/images/salaryPreview.svg";
 import SectionScrollLink from "./SectionScrollLink";
@@ -10,7 +11,13 @@ export default function ValueSection() {
       id="value"
       className="relative flex h-full snap-start items-center justify-center bg-bg-page"
     >
-      <div className="mx-auto grid w-full max-w-[1000px] grid-cols-2 items-center gap-14 px-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.5 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="mx-auto grid w-full max-w-[1000px] grid-cols-2 items-center gap-14 px-6"
+      >
         <div>
           <p className="text-[11px] font-extrabold tracking-[1.6px] text-brand-strong">
             WHAT YOU GET
@@ -56,7 +63,7 @@ export default function ValueSection() {
           alt="5년간 예상 연봉 변화와 조건별 연봉 비교 예시"
           className="h-auto w-full max-w-[483px]"
         />
-      </div>
+      </motion.div>
 
       <SectionScrollLink label="진단 과정 보기" target="steps" />
     </section>

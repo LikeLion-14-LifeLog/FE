@@ -1,3 +1,5 @@
+import { motion } from "motion/react";
+
 export default function EmployeeCardVisual() {
   return (
     <div className="relative flex h-[390px] w-[390px] items-center justify-center">
@@ -10,10 +12,13 @@ export default function EmployeeCardVisual() {
       <span className="absolute top-[38%] right-[12%] h-2 w-2 rounded-full bg-brand/70 ring-[6px] ring-brand/10" />
       <span className="absolute bottom-[9%] left-[38%] h-2 w-2 rounded-full bg-brand/70 ring-[6px] ring-brand/10" />
 
-      <img
+      <motion.img
         src="/employeeCard.svg"
         alt="LifeLog 사원증 일러스트"
         className="relative z-10 w-[190px]"
+        style={{ transformOrigin: "50% 0%" }}
+        animate={{ rotate: [-3, 3, -3] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
   );
