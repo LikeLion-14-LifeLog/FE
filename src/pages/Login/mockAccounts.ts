@@ -21,14 +21,16 @@ const readAccounts = (): Accounts => {
 export const isRegistered = (email: string) =>
   normalize(email) in readAccounts();
 
-export const saveAccount = (email: string, nickname: string) => {
+export const saveAccount = (email: string, nickname: string): boolean => {
+  const key = normalize(email);
   try {
     const accounts = readAccounts();
-    accounts[normalize(email)] = nickname;
+    accounts[key] = nickname;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
   } catch {
-    // 저장소를 쓸 수 없는 환경(시크릿 모드 등)은 무시
+    return false;
   }
+  return readAccounts()[key] === nickname;
 };
 
 export const findNickname = (email: string): string | undefined =>
