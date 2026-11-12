@@ -14,6 +14,7 @@ import {
   type WelcomeState,
 } from "./validation";
 import { findNickname, isRegistered } from "./mockAccounts";
+import { login } from "@/store/authStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ const LoginPage = () => {
 
     // TODO: 로그인 API 연동 (비밀번호 확인, keepLoggedIn 포함)
     const state: WelcomeState = { nickname, email: email.trim() };
+    login(state, keepLoggedIn);
     navigate("/welcome", { state });
   };
 
@@ -64,7 +66,6 @@ const LoginPage = () => {
             error={emailError}
           />
           <AuthInput
-            // Figma: 비밀번호 라벨 영역만 30px 높이
             className="[&>label]:pt-[5px] [&>label]:pb-[5.5px]"
             label="비밀번호 (8자 이상, 영문·숫자 포함)"
             type="password"

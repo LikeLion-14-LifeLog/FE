@@ -4,13 +4,15 @@ import AuthCapsule from "./components/AuthCapsule";
 import Header from "@/components/Header";
 import PrimaryButton from "./components/PrimaryButton";
 import type { WelcomeState } from "./validation";
+import { useCurrentUser } from "@/store/authStore";
 
 /** 로그인 성공 후 시작 페이지 — Figma 3:713 */
 const WelcomePage = () => {
   const navigate = useNavigate();
   const state = useLocation().state as WelcomeState | null;
-  const nickname = state?.nickname || "회원";
-  const email = state?.email;
+  const user = useCurrentUser();
+  const nickname = user?.nickname || state?.nickname || "회원";
+  const email = user?.email ?? state?.email;
 
   return (
     <AuthBackground header={<Header />}>
