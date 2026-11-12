@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import listChecks from "@/assets/icons/listChecks.svg";
 import chartNoAxesCombined from "@/assets/icons/chartNoAxesCombined.svg";
 import target from "@/assets/icons/target.svg";
@@ -40,7 +41,13 @@ export default function StepsSection() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1100px] px-6">
-        <div className="text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="text-center"
+        >
           <p className="text-[11px] font-extrabold tracking-[1.6px] text-brand-strong">
             HOW IT WORKS
           </p>
@@ -54,12 +61,20 @@ export default function StepsSection() {
           <p className="mt-5 text-[13px] text-text-secondary">
             입력한 정보는 진단과 추천을 위해서만 사용됩니다.
           </p>
-        </div>
+        </motion.div>
 
         <div className="mt-12 grid grid-cols-3 gap-5">
-          {steps.map(({ number, icon, title, description }) => (
-            <div
+          {steps.map(({ number, icon, title, description }, index) => (
+            <motion.div
               key={number}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false, amount: 0.5 }}
+              transition={{
+                duration: 0.8,
+                delay: index * 0.1,
+                ease: "easeOut",
+              }}
               className="relative flex h-[190px] flex-col rounded-xl border border-border bg-white p-6 shadow-sm"
             >
               <span className="absolute top-5 right-5 text-[24px] font-bold text-border-strong/60">
@@ -83,7 +98,7 @@ export default function StepsSection() {
               <p className="mt-2 text-[12px] text-text-secondary">
                 {description}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
 
