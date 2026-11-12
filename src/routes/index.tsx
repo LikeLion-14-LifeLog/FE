@@ -6,6 +6,7 @@ import PasswordResetPage from "@/pages/Login/PasswordResetPage";
 import WelcomePage from "@/pages/Login/WelcomePage";
 import MainPage from "@/pages/Main/components/MainPage";
 import CareerPage from "@/pages/Career/CareerPage";
+import CareerDetailPage from "@/pages/Career/CareerDetailPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
@@ -24,6 +25,11 @@ const router = createBrowserRouter([
           description:
             "공공 청년패널 실데이터 기반 동일 전공·조건 취업자 이동 경로 추적 분석",
         },
+      },
+      {
+        // 상세 화면은 자체 제목을 쓰므로 handle 없음
+        path: "/career/:routeId",
+        element: <CareerDetailPage />,
       },
       {
         path: "/salary",
