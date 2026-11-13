@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import type { Education, SpecFormOptions } from "@/types/spec";
+import type { Education } from "@/types/spec/education";
+import type { SpecFormOptions } from "@/types/spec/profile";
 import EducationForm from "./EducationForm";
 
 type Props = {

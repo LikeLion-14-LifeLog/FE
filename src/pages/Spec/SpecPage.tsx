@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSpecFormOptions } from "@/apis/spec";
-import type { BasicInfo, Education, SpecFormOptions } from "@/types/spec";
+import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
+import type { Education } from "@/types/spec/education";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
 import QualificationSection from "./components/QualificationSection";

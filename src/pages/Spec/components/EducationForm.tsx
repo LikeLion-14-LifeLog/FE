@@ -1,4 +1,5 @@
-import type { Education, SpecFormOptions } from "@/types/spec";
+import type { Education } from "@/types/spec/education";
+import type { SpecFormOptions } from "@/types/spec/profile";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 
 type Props = {
