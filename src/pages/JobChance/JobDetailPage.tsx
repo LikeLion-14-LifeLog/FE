@@ -10,6 +10,8 @@ import { getMockJobDetail, MOCK_JOBS } from "./mockData";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
+const SEOUL_JOB_PORTAL_URL = "https://job.seoul.go.kr/";
+
 const formatDeadline = (daysLeft: number) => {
   const date = new Date();
   date.setDate(date.getDate() + daysLeft);
@@ -141,25 +143,14 @@ const JobDetailPage = () => {
             </InfoRow>
           </dl>
 
-          {detail.applyUrl ? (
-            <a
-              href={detail.applyUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-auto flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-[#334155] bg-[#f8fafc] text-[14.5px] font-extrabold tracking-[-0.2px] text-[#334155] transition-colors hover:bg-[#f1f5f9]"
-            >
-              채용 공고 지원하기 <span aria-hidden>↗</span>
-            </a>
-          ) : (
-            <button
-              type="button"
-              disabled
-              title="지원 링크 준비 중"
-              className="mt-auto flex h-12 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-[#334155] bg-[#f8fafc] text-[14.5px] font-extrabold tracking-[-0.2px] text-[#334155] opacity-60"
-            >
-              채용 공고 지원하기 <span aria-hidden>↗</span>
-            </button>
-          )}
+          <a
+            href={detail.applyUrl ?? SEOUL_JOB_PORTAL_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-auto flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-[#334155] bg-[#f8fafc] text-[14.5px] font-extrabold tracking-[-0.2px] text-[#334155] transition-colors hover:bg-[#f1f5f9]"
+          >
+            채용 공고 지원하기 <span aria-hidden>↗</span>
+          </a>
         </aside>
 
         <article className="min-h-[720px] min-w-0 flex-1 rounded-xl border border-[#e2e8f0] bg-white px-9 py-[30px] drop-shadow-[0px_1px_1.5px_rgba(15,23,42,0.04)]">

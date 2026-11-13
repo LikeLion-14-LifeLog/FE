@@ -1,0 +1,23 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<foreignObject x="0" y="0" width="320" height="320"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(12px);clip-path:url(#bgblur_0_28_39_clip_path);height:100%;width:100%"></div></foreignObject><g filter="url(#filter0_d_28_39)" data-figma-bg-blur-radius="24">
+<rect x="50" y="30" width="220" height="220" rx="110" fill="white" fill-opacity="0.45"/>
+<rect x="50.75" y="30.75" width="218.5" height="218.5" rx="109.25" stroke="white" stroke-opacity="0.95" stroke-width="1.5"/>
+<path d="M134.667 114.667V162.167C134.667 163.007 135.001 163.812 135.594 164.406C136.188 165 136.994 165.333 137.834 165.333H160" stroke-width="5.06667" stroke-linecap="round" stroke-linejoin="round" stroke="#0F766E"/>
+<path d="M147.333 149.5V140M158.416 149.5V130.5M169.5 133.667V124.167" stroke-width="5.06667" stroke-linecap="round" stroke="#0F766E"/>
+<path d="M177.416 143.8L188.5 163.75H166.333L177.416 143.8Z" stroke-width="4.75" stroke-linejoin="round" stroke="#0F766E"/>
+<path d="M177.417 151.4V156.467" stroke-width="4.43333" stroke-linecap="round" stroke="#0F766E"/>
+<path d="M177.891 160.267C177.891 160.529 177.679 160.742 177.416 160.742C177.154 160.742 176.941 160.529 176.941 160.267C176.941 160.004 177.154 159.792 177.416 159.792C177.679 159.792 177.891 160.004 177.891 160.267Z" stroke-width="2.85" stroke="#0F766E"/>
+</g>
+<defs>
+<filter id="filter0_d_28_39" x="0" y="0" width="320" height="320" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="20"/>
+<feGaussianBlur stdDeviation="25"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0588235 0 0 0 0 0.462745 0 0 0 0 0.431373 0 0 0 0.14 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_28_39"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_28_39" result="shape"/>
+</filter>
+<clipPath id="bgblur_0_28_39_clip_path" transform="translate(0 0)"><rect x="50" y="30" width="220" height="220" rx="110"/>
+</clipPath></defs>
+</svg>
