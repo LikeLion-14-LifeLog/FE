@@ -1,6 +1,20 @@
+import type { BasicInfo, RegionOption } from "@/types/spec";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 
-export default function BasicInfoSection() {
+type Props = {
+  value: BasicInfo;
+  onChange: (value: BasicInfo) => void;
+  residentialAreas: RegionOption[];
+};
+
+const fieldClass =
+  "h-10 w-full rounded-lg border border-border bg-white px-3 text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand";
+
+export default function BasicInfoSection({
+  value,
+  onChange,
+  residentialAreas,
+}: Props) {
   return (
     <section className="border-b border-border pb-8">
       <div className="mb-5 flex items-center gap-2">
@@ -17,8 +31,14 @@ export default function BasicInfoSection() {
           출생년도
           <input
             type="number"
+            min="1"
+            max={new Date().getFullYear()}
+            value={value.birthYear}
+            onChange={(e) =>
+              onChange({ ...value, birthYear: e.target.value })
+            }
             placeholder="예: 1999"
-            className="h-10 w-full rounded-lg border border-border bg-white px-3 text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            className={fieldClass}
           />
         </label>
 
@@ -26,16 +46,25 @@ export default function BasicInfoSection() {
           거주지역
           <div className="relative">
             <select
-              defaultValue=""
-              className="h-10 w-full appearance-none rounded-lg border border-border bg-white px-3 pr-10 text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              value={value.residenceRegion}
+              onChange={(e) =>
+                onChange({ ...value, residenceRegion: e.target.value })
+              }
+              className={`${fieldClass} appearance-none pr-10`}
             >
               <option value="" disabled>
                 선택해 주세요
               </option>
+              {residentialAreas.map((area) => (
+                <option key={area.code} value={area.code}>
+                  {area.name}
+                </option>
+              ))}
             </select>
             <img
               src={chevronDown}
               alt=""
+              aria-hidden="true"
               className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
             />
           </div>
@@ -53,9 +82,11 @@ export default function BasicInfoSection() {
               id="desired-job"
               type="text"
               readOnly
+              value={value.jobName}
               placeholder="직무를 검색해 선택해 주세요"
               className="min-w-0 flex-1 bg-white px-3 text-[12px] outline-none"
             />
+            {/* TODO: GET /api/jobs에서 jobId와 name 선택 */}
             <button
               type="button"
               disabled
