@@ -2,11 +2,24 @@ import { useEffect, useState } from "react";
 import { getSpecFormOptions } from "@/apis/spec";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
+import type {
+  Certificate,
+  LanguageScore,
+} from "@/types/spec/qualification";
+import type { Experience } from "@/types/spec/experience";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
 import QualificationSection from "./components/QualificationSection";
 import ExperienceSection from "./components/ExperienceSection";
 import SpecFooter from "./components/SpecFooter";
+
+function upsert<T extends { localId: number }>(items: T[], value: T): T[] {
+  return items.some((item) => item.localId === value.localId)
+    ? items.map((item) =>
+        item.localId === value.localId ? value : item,
+      )
+    : [...items, value];
+}
 
 export default function SpecPage() {
   const [basicInfo, setBasicInfo] = useState<BasicInfo>({
@@ -16,6 +29,9 @@ export default function SpecPage() {
     jobName: "",
   });
   const [educations, setEducations] = useState<Education[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [languageScores, setLanguageScores] = useState<LanguageScore[]>([]);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
 
@@ -35,22 +51,6 @@ export default function SpecPage() {
     };
   }, []);
 
-  const saveEducation = (education: Education) => {
-    setEducations((prev) =>
-      prev.some((item) => item.localId === education.localId)
-        ? prev.map((item) =>
-            item.localId === education.localId ? education : item,
-          )
-        : [...prev, education],
-    );
-  };
-
-  const deleteEducation = (localId: number) => {
-    setEducations((prev) =>
-      prev.filter((item) => item.localId !== localId),
-    );
-  };
-
   if (optionsError) {
     return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
   }
@@ -59,9 +59,9 @@ export default function SpecPage() {
     return <p role="status">선택 항목을 불러오는 중입니다.</p>;
   }
 
-  // TODO: GET /api/spec-profile로 기존 스펙 조회 및 서버 PK 유지
-  // TODO: PUT 저장 시 자격증·어학·경험을 포함한 전체 목록 전달
-  // TODO: 전체 프로필 저장 검증은 검색·저장 기능 구현 시 추가
+  // TODO: GET /api/spec-profile로 기존 데이터 및 서버 PK 초기화
+  // TODO: PUT /api/spec-profiles/current/temporary 연동 시 전체 목록 전송
+  // TODO: API 저장 전 검색 결과 ID와 요청 DTO 검증
   return (
     <div className="w-full pb-28">
       <div className="mb-6 border-t border-border-strong" />
@@ -73,16 +73,53 @@ export default function SpecPage() {
             onChange={setBasicInfo}
             residentialAreas={options.residentialAreas}
           />
+
           <EducationSection
             educations={educations}
-            onSave={saveEducation}
-            onDelete={deleteEducation}
+            onSave={(value) =>
+              setEducations((prev) => upsert(prev, value))
+            }
+            onDelete={(id) =>
+              setEducations((prev) =>
+                prev.filter((item) => item.localId !== id),
+              )
+            }
             options={options}
           />
-          <QualificationSection />
+
+          <QualificationSection
+            certificates={certificates}
+            languageScores={languageScores}
+            onSaveCertificate={(value) =>
+              setCertificates((prev) => upsert(prev, value))
+            }
+            onSaveLanguage={(value) =>
+              setLanguageScores((prev) => upsert(prev, value))
+            }
+            onDeleteCertificate={(id) =>
+              setCertificates((prev) =>
+                prev.filter((item) => item.localId !== id),
+              )
+            }
+            onDeleteLanguage={(id) =>
+              setLanguageScores((prev) =>
+                prev.filter((item) => item.localId !== id),
+              )
+            }
+          />
         </div>
 
-        <ExperienceSection />
+        <ExperienceSection
+          experiences={experiences}
+          onSave={(value) =>
+            setExperiences((prev) => upsert(prev, value))
+          }
+          onDelete={(id) =>
+            setExperiences((prev) =>
+              prev.filter((item) => item.localId !== id),
+            )
+          }
+        />
       </div>
 
       <SpecFooter />
