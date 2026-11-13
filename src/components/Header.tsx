@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import { PAGE_CONTAINER } from "@/constants/layout";
 import { useCurrentUser } from "@/store/authStore";
 
 const menus = [
@@ -14,7 +15,7 @@ export default function Header() {
 
   return (
     <header className="w-full border-b border-border bg-white">
-      <div className="mx-auto flex h-15 w-full max-w-7xl items-center gap-9 px-6">
+      <div className={`${PAGE_CONTAINER} flex h-15 items-center gap-9`}>
         <Link
           to="/"
           aria-label="LifeLog 홈"

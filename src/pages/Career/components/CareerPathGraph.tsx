@@ -18,7 +18,7 @@ type CareerPathGraphProps = {
 };
 
 /* ---------- 레이아웃 (Figma 951 × 560 기준) ---------- */
-const GRAPH_WIDTH = 951;
+export const GRAPH_WIDTH = 951;
 const GRAPH_HEIGHT = 560;
 
 const START = { x: 10, width: 188, height: 93 };

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { PAGE_CONTAINER } from "@/constants/layout";
 import { useCurrentUser } from "@/store/authStore";
 import type { JobPosting } from "@/types/dashboard";
 import DiagnosisSummary from "./components/DiagnosisSummary";
@@ -23,7 +24,7 @@ const DashBoardPage = () => {
   return (
     <div className="min-h-screen bg-bg-page font-sans text-text-primary">
       <Header />
-      <main className="mx-auto w-full max-w-[1040px] px-4 pb-[90px] md:px-6 lg:px-0">
+      <main className={`${PAGE_CONTAINER} pb-[90px]`}>
         {diagnosis ? (
           <div className="pt-[42px]">
             <DiagnosisSummary profile={profile} diagnosis={diagnosis} />

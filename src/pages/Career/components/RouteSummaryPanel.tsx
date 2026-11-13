@@ -44,7 +44,8 @@ const RouteSummaryPanel = ({
     : "";
 
   return (
-    <aside className="flex min-h-[680px] w-[440px] shrink-0 flex-col">
+    // 그래프 아래로 내려갈 땐 전체 너비, 나란히 놓일 땐 440px 고정 (CareerPage 의 @container 기준)
+    <aside className="flex w-full flex-col @min-[1464px]:min-h-[680px] @min-[1464px]:w-[440px] @min-[1464px]:shrink-0">
       <p className="text-[11.5px] leading-[17.25px] font-extrabold text-teal-600">
         선택한 이동 경로
       </p>
