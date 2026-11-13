@@ -1,4 +1,4 @@
-import type { SpecFormOptions } from "@/types/spec";
+import type { SpecFormOptions } from "@/types/spec/profile";
 
 export const mockSpecFormOptions: SpecFormOptions = {
   // TODO: GET /api/residential-areas의 전체 17개 응답으로 교체

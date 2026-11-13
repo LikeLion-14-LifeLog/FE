@@ -1,5 +1,5 @@
 import { mockSpecFormOptions } from "@/mocks/spec";
-import type { SpecFormOptions } from "@/types/spec";
+import type { SpecFormOptions } from "@/types/spec/profile";
 
 export async function getSpecFormOptions(): Promise<SpecFormOptions> {
   // TODO: 거주지역은 GET /api/residential-areas 응답으로 교체

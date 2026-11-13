@@ -1,4 +1,4 @@
-import type { BasicInfo, RegionOption } from "@/types/spec";
+import type { BasicInfo, RegionOption } from "@/types/spec/profile";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 
 type Props = {
