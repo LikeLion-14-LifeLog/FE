@@ -5,7 +5,6 @@ import TextLink from "./TextLink";
 type RecommendedJobsProps = {
   jobs: JobPosting[];
   totalCount: number;
-  /** "맞춤 공고 전체보기" 이동 경로 */
   allJobsPath?: string;
   onJobClick?: (job: JobPosting) => void;
 };
@@ -13,7 +12,7 @@ type RecommendedJobsProps = {
 const formatSalaryRange = (min: number, max: number) =>
   `${min.toLocaleString()} ~ ${max.toLocaleString()}만 원`;
 
-/** 진단 후 – 추천 공고 섹션 */
+/** 추천 공고 섹션 */
 const RecommendedJobs = ({
   jobs,
   totalCount,
