@@ -5,6 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LifeLog</title>
+    <script>
+      (function () {
+        var DESIGN_WIDTH = 1920;
+        var MIN_SCALE = 0.75;
+        var MIN_VIEWPORT = 1024;
+        function applyScale() {
+          var w = window.innerWidth;
+          var scale = w < MIN_VIEWPORT ? 1 : Math.min(1, Math.max(MIN_SCALE, w / DESIGN_WIDTH));
+          document.documentElement.style.zoom = String(scale);
+          document.documentElement.style.setProperty("--app-scale", String(scale));
+        }
+        applyScale();
+        window.addEventListener("resize", applyScale);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

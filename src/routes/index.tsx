@@ -10,6 +10,7 @@ import CareerDetailPage from "@/pages/Career/CareerDetailPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
+import JobDetailPage from "@/pages/JobChance/JobDetailPage";
 import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
 
 const router = createBrowserRouter([
@@ -60,6 +61,11 @@ const router = createBrowserRouter([
           description:
             "등록된 프로필 조건 및 설정한 준비 목표(인턴 6개월)를 바탕으로 추천 맞춤 공고입니다.",
         },
+      },
+      {
+        // 상세 화면은 자체 제목을 쓰므로 handle 없음
+        path: "/jobs/:jobId",
+        element: <JobDetailPage />,
       },
     ],
   },

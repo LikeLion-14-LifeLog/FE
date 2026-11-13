@@ -15,15 +15,14 @@ const DashBoardPage = () => {
   const { major, diagnosis, recommendedJobs, totalJobCount } = MOCK_DASHBOARD;
   const profile = { nickname: user?.nickname ?? "", major };
 
-  // TODO: 공고 상세 페이지가 생기면 해당 경로로 교체
   const handleJobClick = (job: JobPosting) => {
-    navigate(`/jobs?jobId=${job.id}`);
+    navigate(`/jobs/${job.id}`);
   };
 
   return (
     <div className="min-h-screen bg-bg-page font-sans text-text-primary">
       <Header />
-      <main className="mx-auto w-full max-w-[1040px] px-4 pb-[90px] md:px-6 lg:px-0">
+      <main className="mx-auto w-full max-w-[1040px] px-4 pb-[90px] md:px-6 lg:px-0 lg:[zoom:1.5]">
         {diagnosis ? (
           <div className="pt-[42px]">
             <DiagnosisSummary profile={profile} diagnosis={diagnosis} />
