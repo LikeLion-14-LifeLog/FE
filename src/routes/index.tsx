@@ -9,6 +9,7 @@ import CareerPage from "@/pages/Career/CareerPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
+import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
 import LandingPage from "@/pages/Landing/LandingPage";
 
 const router = createBrowserRouter([
@@ -46,7 +47,7 @@ const router = createBrowserRouter([
         },
       },
       {
-        path: "/job",
+        path: "/jobs",
         element: <JobChancePage />,
         handle: {
           eyebrow: "JOB OPENING",
@@ -58,6 +59,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: "/login", element: <LoginPage /> },
+  { path: "dashboard", element: <DashBoardPage /> },
   { path: "/signup", element: <SignupPage /> },
   { path: "/password-reset", element: <PasswordResetPage /> },
   { path: "/welcome", element: <WelcomePage /> },
