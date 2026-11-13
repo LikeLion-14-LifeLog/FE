@@ -9,6 +9,7 @@ import CareerPage from "@/pages/Career/CareerPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
+import LandingPage from "@/pages/Landing/LandingPage";
 
 const router = createBrowserRouter([
   {
@@ -35,7 +36,7 @@ const router = createBrowserRouter([
         },
       },
       {
-        path: "/",
+        path: "/spec",
         element: <MainPage />,
         handle: {
           eyebrow: "my carrer profile",
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
   { path: "/password-reset", element: <PasswordResetPage /> },
   { path: "/welcome", element: <WelcomePage /> },
   { path: "*", element: <NotFoundPage /> },
+  { path: "/", element: <LandingPage /> },
 ]);
 
 export default router;
