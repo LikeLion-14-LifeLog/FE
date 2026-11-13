@@ -26,27 +26,23 @@ const CareerPage = () => {
 
   return (
     <div className="flex flex-col gap-[14px]">
-      {/* 칩 오른쪽 끝에서 구분선이 이어지도록 칩 하단과 선을 같은 높이에 둠 */}
       <div className="flex items-end">
         <span className="mr-[6px] self-center text-[12px] leading-[18px] font-bold text-teal-600">
           탐색 기준
         </span>
-        <ConditionChip items={conditions} className="shrink-0" />
-        <div className="flex-1 border-b border-slate-200" />
+        <ConditionChip
+          items={conditions}
+          className="relative z-10 shrink-0 bg-white"
+        />
+        <div className="-ml-6 flex-1 border-b border-slate-200" />
       </div>
 
       <div className="flex items-start gap-9 overflow-x-auto pt-[22px]">
         <section className="shrink-0 border-r border-slate-200 pr-9">
-          <div className="mb-1.5 flex w-[951px] items-center justify-between border-b border-slate-100 pb-2">
-            <p className={`w-[200px] ${COLUMN_TITLE}`}>
-              01 출발 기준선 (내 현재 조건)
-            </p>
-            <p className={`w-[280px] text-center ${COLUMN_TITLE}`}>
-              02 1차 첫 취업 진입군
-            </p>
-            <p className={`w-[280px] text-right ${COLUMN_TITLE}`}>
-              03 2차 이직/성장 궤적
-            </p>
+          <div className="mb-1.5 grid w-[951px] grid-cols-[277.5px_371.5px_302px] items-center border-b border-slate-100 pb-2 text-center">
+            <p className={COLUMN_TITLE}>01 출발 기준선 (내 현재 조건)</p>
+            <p className={COLUMN_TITLE}>02 1차 첫 취업 진입군</p>
+            <p className={COLUMN_TITLE}>03 2차 이직/성장 궤적</p>
           </div>
           <CareerPathGraph
             start={start}

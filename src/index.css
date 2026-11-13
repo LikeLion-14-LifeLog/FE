@@ -8,6 +8,10 @@
   font-display: swap;
 }
 
+html {
+  background-color: #fff;
+}
+
 @theme {
   --font-sans: "Pretendard", sans-serif;
 
