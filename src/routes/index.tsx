@@ -10,6 +10,7 @@ import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
 import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
+import LandingPage from "@/pages/Landing/LandingPage";
 
 const router = createBrowserRouter([
   {
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
   { path: "/password-reset", element: <PasswordResetPage /> },
   { path: "/welcome", element: <WelcomePage /> },
   { path: "*", element: <NotFoundPage /> },
+  { path: "/", element: <LandingPage /> },
 ]);
 
 export default router;
