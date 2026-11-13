@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { BasicInfo, RegionOption } from "@/types/spec/profile";
 import chevronDown from "@/assets/icons/chevronDown.svg";
+import SearchModal from "./SearchModal";
 
 type Props = {
   value: BasicInfo;
@@ -15,6 +17,8 @@ export default function BasicInfoSection({
   onChange,
   residentialAreas,
 }: Props) {
+  const [searchOpen, setSearchOpen] = useState(false);
+
   return (
     <section className="border-b border-border pb-8">
       <div className="mb-5 flex items-center gap-2">
@@ -89,14 +93,28 @@ export default function BasicInfoSection({
             {/* TODO: GET /api/jobs에서 jobId와 name 선택 */}
             <button
               type="button"
-              disabled
-              className="px-3 text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed"
+              onClick={() => setSearchOpen(true)}
+              className="px-3 text-[11px] font-semibold text-brand-strong"
             >
               검색
             </button>
           </div>
         </div>
       </div>
+
+      {searchOpen && (
+        <SearchModal
+          kind="job"
+          onSelect={(item) =>
+            onChange({
+              ...value,
+              jobId: null,
+              jobName: item.name,
+            })
+          }
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </section>
   );
 }

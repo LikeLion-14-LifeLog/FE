@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { Education } from "@/types/spec/education";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import chevronDown from "@/assets/icons/chevronDown.svg";
+import SearchModal from "./SearchModal";
 
 type Props = {
   value: Education;
@@ -25,6 +27,8 @@ export default function EducationForm({
   onSave,
   onCancel,
 }: Props) {
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const {
     degreeTypes,
     academicStatuses,
@@ -137,14 +141,14 @@ export default function EducationForm({
 
         <div className="col-span-2 flex flex-col gap-2">
           <label
-            htmlFor="major"
+            htmlFor={`major-${value.localId}`}
             className="text-[12px] font-medium text-text-primary"
           >
             전공명
           </label>
           <div className="flex h-10 overflow-hidden rounded-lg border border-border focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
             <input
-              id="major"
+              id={`major-${value.localId}`}
               type="text"
               readOnly
               value={value.majorName}
@@ -154,8 +158,9 @@ export default function EducationForm({
             {/* TODO: GET /api/majors의 majorId, name, mainField 연결 */}
             <button
               type="button"
-              disabled
-              className="px-3 text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed"
+              onClick={() => setSearchOpen(true)}
+              disabled={!value.majorAffiliation}
+              className="px-3 text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:text-text-muted"
             >
               검색
             </button>
@@ -239,6 +244,21 @@ export default function EducationForm({
           저장
         </button>
       </div>
+
+      {searchOpen && (
+        <SearchModal
+          kind="major"
+          initialCategory={value.majorAffiliation}
+          onSelect={(item) =>
+            onChange({
+              majorAffiliation: item.category ?? value.majorAffiliation,
+              majorId: null,
+              majorName: item.name,
+            })
+          }
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </div>
   );
 }
