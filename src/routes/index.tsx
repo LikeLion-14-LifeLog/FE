@@ -27,7 +27,6 @@ const router = createBrowserRouter([
         },
       },
       {
-        // 상세 화면은 자체 제목을 쓰므로 handle 없음
         path: "/career/:routeId",
         element: <CareerDetailPage />,
       },
