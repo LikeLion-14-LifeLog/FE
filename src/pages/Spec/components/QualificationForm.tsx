@@ -1,13 +1,15 @@
+import { useState } from "react";
 import type {
   QualificationDraft,
   ScoreType,
 } from "@/types/spec/qualification";
 import chevronDown from "@/assets/icons/chevronDown.svg";
+import SearchModal from "./SearchModal";
 
 type Props = {
   draft: QualificationDraft;
   canSave: boolean;
-  onChange: (value: QualificationDraft) => void;
+  onChange: (draft: QualificationDraft) => void;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -32,34 +34,26 @@ export default function QualificationForm({
   onSave,
   onCancel,
 }: Props) {
+  const [searchOpen, setSearchOpen] = useState(false);
+
   return (
     <div className="rounded-xl border border-border bg-white p-5">
       {draft.kind === "certificate" ? (
         <div className="grid grid-cols-2 gap-4">
           <div className={`${labelClass} col-span-2`}>
             <label htmlFor="certificate-name">자격증명</label>
-            <div className="flex h-10 overflow-hidden rounded-lg border border-border focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
+            <div className="flex h-10 overflow-hidden rounded-lg border border-border bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
               <input
                 id="certificate-name"
                 value={draft.value.certificateName}
-                onChange={(e) =>
-                  onChange({
-                    kind: "certificate",
-                    value: {
-                      ...draft.value,
-                      certificateName: e.target.value,
-                      certificateId: null,
-                    },
-                  })
-                }
-                placeholder="자격증명을 입력해 주세요"
+                readOnly
+                placeholder="자격증을 검색해 주세요"
                 className="min-w-0 flex-1 bg-white px-3 text-[12px] outline-none"
               />
-              {/* TODO: GET /api/certifications 검색 모달 연결 */}
               <button
                 type="button"
-                disabled
-                className="px-3 text-[11px] font-semibold text-text-muted disabled:cursor-not-allowed"
+                onClick={() => setSearchOpen(true)}
+                className="px-3 text-[11px] font-semibold text-brand-strong"
               >
                 검색
               </button>
@@ -71,12 +65,12 @@ export default function QualificationForm({
             <input
               type="month"
               value={draft.value.acquiredYearMonth}
-              onChange={(e) =>
+              onChange={(event) =>
                 onChange({
                   kind: "certificate",
                   value: {
                     ...draft.value,
-                    acquiredYearMonth: e.target.value,
+                    acquiredYearMonth: event.target.value,
                   },
                 })
               }
@@ -88,28 +82,18 @@ export default function QualificationForm({
         <div className="grid grid-cols-2 gap-4">
           <div className={`${labelClass} col-span-2`}>
             <label htmlFor="language-exam-name">어학시험명</label>
-            <div className="flex h-10 overflow-hidden rounded-lg border border-border focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
+            <div className="flex h-10 overflow-hidden rounded-lg border border-border bg-white focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
               <input
                 id="language-exam-name"
                 value={draft.value.languageExamName}
-                onChange={(e) =>
-                  onChange({
-                    kind: "language",
-                    value: {
-                      ...draft.value,
-                      languageExamName: e.target.value,
-                      languageExamId: null,
-                    },
-                  })
-                }
-                placeholder="어학시험명을 입력해 주세요"
+                readOnly
+                placeholder="어학시험을 검색해 주세요"
                 className="min-w-0 flex-1 bg-white px-3 text-[12px] outline-none"
               />
-              {/* TODO: GET /api/language-exams 결과의 ID와 scoreType 선택 */}
               <button
                 type="button"
-                disabled
-                className="px-3 text-[11px] font-semibold text-text-muted disabled:cursor-not-allowed"
+                onClick={() => setSearchOpen(true)}
+                className="px-3 text-[11px] font-semibold text-brand-strong"
               >
                 검색
               </button>
@@ -121,10 +105,10 @@ export default function QualificationForm({
             <div className="relative">
               <select
                 value={draft.value.scoreType}
-                onChange={(e) => {
+                onChange={(event) => {
                   const scoreType =
                     scoreTypes.find(
-                      (item) => item.value === e.target.value,
+                      (item) => item.value === event.target.value,
                     )?.value ?? "";
 
                   onChange({
@@ -164,12 +148,12 @@ export default function QualificationForm({
               <input
                 type="number"
                 value={draft.value.scoreNumeric}
-                onChange={(e) =>
+                onChange={(event) =>
                   onChange({
                     kind: "language",
                     value: {
                       ...draft.value,
-                      scoreNumeric: e.target.value,
+                      scoreNumeric: event.target.value,
                     },
                   })
                 }
@@ -185,12 +169,12 @@ export default function QualificationForm({
               등급
               <input
                 value={draft.value.scoreGrade}
-                onChange={(e) =>
+                onChange={(event) =>
                   onChange({
                     kind: "language",
                     value: {
                       ...draft.value,
-                      scoreGrade: e.target.value,
+                      scoreGrade: event.target.value,
                     },
                   })
                 }
@@ -205,12 +189,12 @@ export default function QualificationForm({
             <input
               type="month"
               value={draft.value.acquiredYearMonth}
-              onChange={(e) =>
+              onChange={(event) =>
                 onChange({
                   kind: "language",
                   value: {
                     ...draft.value,
-                    acquiredYearMonth: e.target.value,
+                    acquiredYearMonth: event.target.value,
                   },
                 })
               }
@@ -223,12 +207,12 @@ export default function QualificationForm({
             <input
               type="month"
               value={draft.value.expiresYearMonth}
-              onChange={(e) =>
+              onChange={(event) =>
                 onChange({
                   kind: "language",
                   value: {
                     ...draft.value,
-                    expiresYearMonth: e.target.value,
+                    expiresYearMonth: event.target.value,
                   },
                 })
               }
@@ -239,7 +223,7 @@ export default function QualificationForm({
       )}
 
       <p className="mt-4 text-[11px] text-text-muted">
-        검색 기능 연결 전에는 이 화면에서만 임시 등록됩니다.
+        검색 결과는 예시 데이터이며, 서버 저장 기능은 아직 연결되지 않았습니다.
       </p>
 
       <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
@@ -259,6 +243,37 @@ export default function QualificationForm({
           저장
         </button>
       </div>
+
+      {searchOpen && (
+        <SearchModal
+          kind={draft.kind}
+          onSelect={(item) => {
+            if (draft.kind === "certificate") {
+              onChange({
+                kind: "certificate",
+                value: {
+                  ...draft.value,
+                  certificateId: null,
+                  certificateName: item.name,
+                },
+              });
+            } else {
+              onChange({
+                kind: "language",
+                value: {
+                  ...draft.value,
+                  languageExamId: null,
+                  languageExamName: item.name,
+                  scoreType: "",
+                  scoreNumeric: "",
+                  scoreGrade: "",
+                },
+              });
+            }
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -54,13 +54,13 @@ export default function EducationSection({
   };
 
   // 로컬 카드 확정용 검증이며 서버 PUT 검증이 아님
-  // TODO: 학력 유형별 필수 조건은 백엔드 확인 후 반영
+  // TODO: 실제 API 저장 시 majorId 및 학력 유형별 필수 조건 확인
   const hasMajorInput = Boolean(
     draft?.majorAffiliation || draft?.majorName || draft?.majorId != null,
   );
 
   const hasCompleteMajor = Boolean(
-    draft?.majorAffiliation && draft.majorName && draft.majorId != null,
+    draft?.majorAffiliation && draft.majorName.trim(),
   );
 
   const canSave = Boolean(
