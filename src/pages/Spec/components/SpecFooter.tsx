@@ -22,7 +22,7 @@ export default function SpecFooter() {
           <button
             type="button"
             disabled
-            className="rounded-lg bg-text-primary px-4 py-2.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-text-primary px-5 py-2.5 text-[12px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted"
           >
             이 스펙으로 진단하기 →
           </button>
