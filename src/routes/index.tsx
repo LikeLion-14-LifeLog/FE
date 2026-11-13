@@ -4,7 +4,7 @@ import LoginPage from "@/pages/Login/LoginPage";
 import SignupPage from "@/pages/Login/SignupPage";
 import PasswordResetPage from "@/pages/Login/PasswordResetPage";
 import WelcomePage from "@/pages/Login/WelcomePage";
-import MainPage from "@/pages/Main/components/MainPage";
+import SpecPage from "@/pages/Spec/SpecPage";
 import CareerPage from "@/pages/Career/CareerPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
@@ -38,12 +38,12 @@ const router = createBrowserRouter([
       },
       {
         path: "/spec",
-        element: <MainPage />,
+        element: <SpecPage />,
         handle: {
-          eyebrow: "my carrer profile",
+          eyebrow: "MY CAREER PROFILE",
           title: "내 커리어 프로필",
           description:
-            "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 바로 반영되며, 이 기기에 자동 저장됩니다.",
+            "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 활용되며, 이 페이지에서 언제든 수정할 수 있습니다.",
         },
       },
       {
