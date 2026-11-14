@@ -124,7 +124,7 @@ export default function SearchModal({
                 disabled={disabled}
                 aria-pressed={active}
                 onClick={() => setActiveTab(tab.value)}
-                className={`relative shrink-0 pb-2.5 text-[11px] font-medium whitespace-nowrap focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-brand ${
+                className={`relative shrink-0 cursor-pointer pb-2.5 text-[11px] font-medium whitespace-nowrap focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-brand ${
                   active
                     ? "text-brand-strong after:absolute after:right-0 after:bottom-0 after:left-0 after:h-[2px] after:bg-brand"
                     : disabled
@@ -187,7 +187,7 @@ export default function SearchModal({
                   <button
                     type="button"
                     onClick={() => handleSelect(item)}
-                    className="group flex min-h-[60px] w-full items-center justify-between gap-3 rounded-md px-2 py-3 text-left transition-colors hover:bg-brand-soft focus-visible:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand"
+                    className="group flex min-h-[60px] w-full cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-3 text-left transition-colors hover:bg-brand-soft focus-visible:bg-brand-soft focus-visible:outline-2 focus-visible:outline-brand"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-[12px] font-semibold text-text-primary">

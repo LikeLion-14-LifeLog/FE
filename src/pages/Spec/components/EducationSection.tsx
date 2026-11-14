@@ -2,12 +2,14 @@ import { useRef, useState } from "react";
 import type { Education } from "@/types/spec/education";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import EducationForm from "./EducationForm";
+import SavedItemActions from "./SavedItemActions";
+import { formatYearMonth } from "../utils/formatYearMonth";
 
 type Props = {
   educations: Education[];
-  onSave: (education: Education) => void;
-  onDelete: (localId: number) => void;
   options: SpecFormOptions;
+  onSave: (value: Education) => void;
+  onDelete: (localId: number) => void;
 };
 
 const createEducation = (localId: number): Education => ({
@@ -24,72 +26,60 @@ const createEducation = (localId: number): Education => ({
   majorName: "",
 });
 
+const formatDate = (value: string) => {
+  const [year, month] = value.split("-");
+  return year && month ? `${year}.${Number(month)}` : "";
+};
+
 export default function EducationSection({
   educations,
+  options,
   onSave,
   onDelete,
-  options,
 }: Props) {
-  const nextId = useRef(2);
+  const nextId = useRef(
+    Math.max(1, ...educations.map((item) => item.localId)) + 1,
+  );
   const [draft, setDraft] = useState<Education | null>(() =>
-    createEducation(1),
+    educations.length ? null : createEducation(1),
   );
 
-  const updateDraft = (changes: Partial<Education>) => {
-    setDraft((prev) => (prev ? { ...prev, ...changes } : null));
-  };
-
-  const addEducation = () => {
-    setDraft(createEducation(nextId.current++));
-  };
-
-  const cancelEducation = () => {
-    if (!draft) return;
-    setDraft(educations.length ? null : createEducation(draft.localId));
-  };
-
-  const deleteEducation = (localId: number) => {
-    onDelete(localId);
-    if (educations.length === 1) addEducation();
-  };
-
-  // 로컬 카드 확정용 검증이며 서버 PUT 검증이 아님
-  // TODO: 실제 API 저장 시 majorId 및 학력 유형별 필수 조건 확인
-  const hasMajorInput = Boolean(
-    draft?.majorAffiliation || draft?.majorName || draft?.majorId != null,
-  );
-
-  const hasCompleteMajor = Boolean(
-    draft?.majorAffiliation && draft.majorName.trim(),
-  );
-
+  const hasMajor = Boolean(draft?.majorAffiliation || draft?.majorName);
   const canSave = Boolean(
     draft?.type &&
-      draft.status &&
       draft.location &&
-      (!hasMajorInput || hasCompleteMajor),
+      (!hasMajor || (draft.majorAffiliation && draft.majorName.trim())) &&
+      (!draft.graduatedYearMonth ||
+        /^\d{4}-(0[1-9]|1[0-2])$/.test(draft.graduatedYearMonth)),
   );
 
-  const saveEducation = () => {
+  const add = () => setDraft(createEducation(nextId.current++));
+
+  const save = () => {
     if (!draft || !canSave) return;
     onSave(draft);
     setDraft(null);
   };
 
+  const remove = (id: number) => {
+    onDelete(id);
+    if (educations.length === 1) add();
+  };
+
   return (
-    <section className="border-b border-border pb-8">
+    <section className="border-b border-border pb-6">
       <div className="mb-5 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
           02
         </span>
-        <h2 className="text-[15px] font-semibold text-text-primary">
+        <h2 className="text-[15px] font-medium text-text-primary">
           학력 사항 <span className="text-brand">*</span>
         </h2>
         <button
           type="button"
-          onClick={addEducation}
           disabled={draft !== null}
-          className="ml-auto text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={add}
+          className="ml-auto text-[11px] font-semibold text-brand-strong cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
         >
           + 학력 추가
         </button>
@@ -97,57 +87,123 @@ export default function EducationSection({
 
       {educations
         .filter((item) => item.localId !== draft?.localId)
-        .map((education) => (
-          <div
-            key={education.localId}
-            className="mb-4 border-b border-border pb-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-semibold text-text-primary">
-                {options.degreeTypes.find(
-                  (item) => item.value === education.type,
-                )?.label ?? education.type}
-                {education.majorName && ` · ${education.majorName}`}
-              </p>
+        .map((item) => {
+          const location =
+            options.schoolLocations.find(
+              (option) => option.code === item.location,
+            )?.name ?? item.location;
 
-              <div className="flex gap-3 text-[11px]">
-                <button
-                  type="button"
+          const degree =
+            options.degreeTypes.find(
+              (option) => option.value === item.type,
+            )?.label ?? item.type;
+
+          const majorField = options.majorFields.find(
+            (option) => option.value === item.majorAffiliation,
+          )?.label.replace(/계열$/, " 계열");
+
+          // TODO(API 명세 협의): 학위 ENUM과 대학/대학원 구분 기준 확정
+          const school =
+            item.type === "MASTER" ? "대학원" : "대학";
+
+          // TODO(API 명세 협의): Figma의 졸업/졸업 예정 표시를
+          // 실제 학적 상태와 매핑할 방법 확정
+          const graduationStatus =
+            item.type === "HIGH_SCHOOL" || item.status === "ATTENDING"
+              ? "졸업 예정"
+              : "졸업";
+
+          return (
+            <div
+              key={item.localId}
+              className="mb-4 border-b border-border pb-4 last:border-b-0"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                  <p className="text-[16px] font-bold leading-6 text-text-primary">
+                    {location} 소재 {school}
+                  </p>
+                  <span className="text-[11px] font-semibold text-brand-strong">
+                    {degree}
+                  </span>
+                </div>
+
+                <SavedItemActions
                   disabled={draft !== null}
-                  onClick={() => setDraft({ ...education })}
-                  className="text-brand-strong disabled:opacity-40"
-                >
-                  수정
-                </button>
-                <button
-                  type="button"
-                  disabled={draft !== null}
-                  onClick={() => deleteEducation(education.localId)}
-                  className="text-text-secondary disabled:opacity-40"
-                >
-                  삭제
-                </button>
+                  onEdit={() => setDraft({ ...item })}
+                  onDelete={() => remove(item.localId)}
+                />
+              </div>
+
+              {(item.majorName || majorField) && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                  {item.majorName && (
+                    <span className="text-[13px] font-bold leading-5 text-text-primary">
+                      {item.majorName}
+                    </span>
+                  )}
+
+                  {item.majorName && majorField && (
+                    <span
+                      aria-hidden="true"
+                      className="text-[13px] text-border-strong"
+                    >
+                      |
+                    </span>
+                  )}
+
+                  {majorField && (
+                    <span className="text-[11px] text-text-secondary">
+                      {majorField}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex items-baseline justify-between gap-3">
+                <div className="flex items-baseline gap-1">
+                  {item.universityGrade && (
+                    <span className="text-[15px] font-bold leading-5 text-text-primary">
+                      {item.universityGrade}
+                    </span>
+                  )}
+
+                  {item.universityStandardGrade && (
+                    <span className="text-[11px] text-text-muted">
+                      / {item.universityStandardGrade}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 items-baseline gap-2 text-[11px]">
+                  {item.graduatedYearMonth && (
+                    <span className="text-text-muted">
+                      {formatDate(item.graduatedYearMonth)}
+                    </span>
+                  )}
+                  <span className="font-semibold text-brand-strong">
+                    {graduationStatus}
+                  </span>
+                </div>
               </div>
             </div>
-
-            <p className="mt-2 text-[11px] text-text-secondary">
-              {options.academicStatuses.find(
-                (item) => item.value === education.status,
-              )?.label ?? education.status}
-              {education.graduatedYearMonth &&
-                ` · ${education.graduatedYearMonth}`}
-            </p>
-          </div>
-        ))}
+          );
+        })}
 
       {draft && (
         <EducationForm
           value={draft}
           options={options}
           canSave={canSave}
-          onChange={updateDraft}
-          onSave={saveEducation}
-          onCancel={cancelEducation}
+          onChange={(changes) =>
+            setDraft((prev) => (prev ? { ...prev, ...changes } : null))
+          }
+          onSave={save}
+          onCancel={() =>
+            setDraft(
+              educations.length ? null : createEducation(draft.localId),
+            )
+          }
         />
       )}
     </section>

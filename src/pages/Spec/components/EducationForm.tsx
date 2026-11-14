@@ -3,6 +3,13 @@ import type { Education } from "@/types/spec/education";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SearchModal from "./SearchModal";
+import YearMonthField from "./YearMonthField";
+import {
+  fieldClass,
+  labelClass,
+  cancelClass,
+  saveClass,
+} from "./formStyles";
 
 type Props = {
   value: Education;
@@ -13,11 +20,14 @@ type Props = {
   onCancel: () => void;
 };
 
-const fieldClass =
-  "h-10 w-full rounded-lg border border-border bg-white px-3 text-[12px] outline-none focus:border-brand focus:ring-1 focus:ring-brand";
-
-const labelClass =
-  "flex flex-col gap-2 text-[12px] font-medium text-text-primary";
+const arrow = (
+  <img
+    src={chevronDown}
+    alt=""
+    aria-hidden="true"
+    className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
+  />
+);
 
 export default function EducationForm({
   value,
@@ -29,65 +39,25 @@ export default function EducationForm({
 }: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const {
-    degreeTypes,
-    academicStatuses,
-    schoolLocations,
-    majorFields,
-    gradeScales,
-  } = options;
-
-  const chevron = (
-    <img
-      src={chevronDown}
-      alt=""
-      aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
-    />
-  );
-
   return (
     <div className="rounded-xl border border-border bg-white p-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          학력 유형
+          학위 구분
           <div className="relative">
             <select
               value={value.type}
               onChange={(e) => onChange({ type: e.target.value })}
-              className={`${fieldClass} appearance-none pr-10`}
+              className={`${fieldClass} cursor-pointer appearance-none pr-9`}
             >
-              <option value="" disabled>
-                선택해 주세요
-              </option>
-              {degreeTypes.map((item) => (
+              <option value="" disabled>선택해 주세요</option>
+              {options.degreeTypes.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>
               ))}
             </select>
-            {chevron}
-          </div>
-        </label>
-
-        <label className={labelClass}>
-          학적 상태
-          <div className="relative">
-            <select
-              value={value.status}
-              onChange={(e) => onChange({ status: e.target.value })}
-              className={`${fieldClass} appearance-none pr-10`}
-            >
-              <option value="" disabled>
-                선택해 주세요
-              </option>
-              {academicStatuses.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            {chevron}
+            {arrow}
           </div>
         </label>
 
@@ -97,18 +67,16 @@ export default function EducationForm({
             <select
               value={value.location}
               onChange={(e) => onChange({ location: e.target.value })}
-              className={`${fieldClass} appearance-none pr-10`}
+              className={`${fieldClass} cursor-pointer appearance-none pr-9`}
             >
-              <option value="" disabled>
-                선택해 주세요
-              </option>
-              {schoolLocations.map((item) => (
+              <option value="" disabled>선택해 주세요</option>
+              {options.schoolLocations.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.name}
                 </option>
               ))}
             </select>
-            {chevron}
+            {arrow}
           </div>
         </label>
 
@@ -124,72 +92,60 @@ export default function EducationForm({
                   majorName: "",
                 })
               }
-              className={`${fieldClass} appearance-none pr-10`}
+              className={`${fieldClass} cursor-pointer appearance-none pr-9`}
             >
-              <option value="" disabled>
-                선택해 주세요
-              </option>
-              {majorFields.map((item) => (
+              <option value="" disabled>선택해 주세요</option>
+              {options.majorFields.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>
               ))}
             </select>
-            {chevron}
+            {arrow}
           </div>
         </label>
 
-        <div className="col-span-2 flex flex-col gap-2">
-          <label
-            htmlFor={`major-${value.localId}`}
-            className="text-[12px] font-medium text-text-primary"
+        <div className={labelClass}>
+          <span>전공명</span>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            disabled={!value.majorAffiliation}
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-left transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:hover:border-border"
           >
-            전공명
-          </label>
-          <div className="flex h-10 overflow-hidden rounded-lg border border-border focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
-            <input
-              id={`major-${value.localId}`}
-              type="text"
-              readOnly
-              value={value.majorName}
-              placeholder="전공을 검색해 선택해 주세요"
-              className="min-w-0 flex-1 bg-white px-3 text-[12px] outline-none"
-            />
-            {/* TODO: GET /api/majors의 majorId, name, mainField 연결 */}
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              disabled={!value.majorAffiliation}
-              className="px-3 text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:text-text-muted"
-            >
+            <span className={`min-w-0 truncate text-[12px] ${
+              value.majorName ? "text-text-primary" : "text-text-muted"
+            }`}>
+              {value.majorName || "전공을 검색해 선택해 주세요"}
+            </span>
+            <span className={`shrink-0 text-[11px] font-semibold ${
+              value.majorAffiliation ? "text-brand-strong" : "text-text-muted"
+            }`}>
               검색
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
 
-        <label className={`${labelClass} col-span-2`}>
-          졸업(예정) 시기
-          <input
-            type="month"
+        <div className="sm:col-span-2">
+          <YearMonthField
+            label="졸업(예정) 시기"
             value={value.graduatedYearMonth}
-            onChange={(e) =>
-              onChange({ graduatedYearMonth: e.target.value })
+            onChange={(graduatedYearMonth) =>
+              onChange({ graduatedYearMonth })
             }
-            className={fieldClass}
           />
-        </label>
+        </div>
 
-        <div className="col-span-2 flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
           <label
-            htmlFor="university-grade"
+            htmlFor={`grade-${value.localId}`}
             className="text-[12px] font-medium text-text-primary"
           >
             졸업 학점
           </label>
-
-          <div className="flex gap-3">
+          <div className="flex items-center gap-2">
             <input
-              id="university-grade"
+              id={`grade-${value.localId}`}
               type="number"
               min="0"
               step="0.01"
@@ -198,48 +154,40 @@ export default function EducationForm({
                 onChange({ universityGrade: e.target.value })
               }
               placeholder="취득 학점"
-              className={`${fieldClass} min-w-0 flex-1`}
+              className={`${fieldClass} flex-1`}
             />
-
+            <span className="text-[12px] text-text-muted">/</span>
             <div className="relative w-24 shrink-0">
               <select
+                aria-label="학점 만점 기준"
                 value={value.universityStandardGrade}
                 onChange={(e) =>
-                  onChange({
-                    universityStandardGrade: e.target.value,
-                  })
+                  onChange({ universityStandardGrade: e.target.value })
                 }
-                aria-label="학점 만점 기준"
-                className={`${fieldClass} appearance-none pr-8`}
+                className={`${fieldClass} cursor-pointer appearance-none pr-8`}
               >
-                <option value="" disabled>
-                  만점
-                </option>
-                {gradeScales.map((scale) => (
+                <option value="" disabled>만점</option>
+                {options.gradeScales.map((scale) => (
                   <option key={scale} value={scale}>
                     {scale}
                   </option>
                 ))}
               </select>
-              {chevron}
+              {arrow}
             </div>
           </div>
         </div>
       </div>
 
       <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-border px-6 py-2 text-[12px] text-text-secondary transition-colors hover:border-text-primary hover:text-text-primary"
-        >
+        <button type="button" onClick={onCancel} className={cancelClass}>
           취소
         </button>
         <button
           type="button"
           onClick={onSave}
           disabled={!canSave}
-          className="rounded-lg bg-text-primary px-8 py-2 text-[12px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted"
+          className={saveClass}
         >
           저장
         </button>
