@@ -7,6 +7,10 @@ import type {
 import QualificationForm from "./QualificationForm";
 import SavedItemActions from "./SavedItemActions";
 import { formatYearMonth } from "../utils/formatYearMonth";
+import {
+  isValidCertificate,
+  isValidLanguage,
+} from "../utils/specValidation";
 
 type Props = {
   certificates: Certificate[];
@@ -19,30 +23,12 @@ type Props = {
 
 type Kind = QualificationDraft["kind"];
 
-const validMonth = (value: string) =>
-  !value || /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
-
-function isValid(draft: QualificationDraft | null): boolean {
-  if (!draft) return false;
-
-  if (draft.kind === "certificate") {
-    return (
-      !!draft.value.certificateName.trim() &&
-      validMonth(draft.value.acquiredYearMonth)
-    );
-  }
-
-  const { languageExamName, scoreNumeric, scoreGrade, expiresYearMonth } =
-    draft.value;
-
-  return (
-    !!languageExamName.trim() &&
-    !!(scoreNumeric.trim() || scoreGrade.trim()) &&
-    (!scoreNumeric.trim() ||
-      (Number.isFinite(Number(scoreNumeric)) && Number(scoreNumeric) >= 0)) &&
-    validMonth(expiresYearMonth)
-  );
-}
+const isValid = (draft: QualificationDraft | null) =>
+  draft?.kind === "certificate"
+    ? isValidCertificate(draft.value)
+    : draft?.kind === "language"
+      ? isValidLanguage(draft.value)
+      : false;
 
 export default function QualificationSection({
   certificates,
@@ -71,8 +57,14 @@ export default function QualificationSection({
       )
     : false;
 
-  const createDraft = (kind: Kind): QualificationDraft =>
-    kind === "certificate"
+  const createDraft = (kind: Kind): QualificationDraft => {
+    nextId.current = Math.max(
+      nextId.current,
+      ...certificates.map((item) => item.localId + 1),
+      ...languageScores.map((item) => item.localId + 1),
+    );
+
+    return kind === "certificate"
       ? {
           kind,
           value: {
@@ -97,6 +89,7 @@ export default function QualificationSection({
             expiresYearMonth: "",
           },
         };
+  };
 
   const switchKind = (kind: Kind) => {
     if (!draft || isEditing || kind === draft.kind) return;
@@ -124,8 +117,12 @@ export default function QualificationSection({
 
   const save = () => {
     if (!draft || !isValid(draft)) return;
-    if (draft.kind === "certificate") onSaveCertificate(draft.value);
-    else onSaveLanguage(draft.value);
+
+    if (draft.kind === "certificate") {
+      onSaveCertificate(draft.value);
+    } else {
+      onSaveLanguage(draft.value);
+    }
 
     cached.current = {};
     setDraft(null);
@@ -142,7 +139,7 @@ export default function QualificationSection({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
           03
         </span>
-        <h2 className="text-[15px] font-medium ext-text-primary">
+        <h2 className="text-[15px] font-medium text-text-primary">
           자격 및 어학
         </h2>
         <button
@@ -152,7 +149,7 @@ export default function QualificationSection({
             cached.current = {};
             setDraft(createDraft("certificate"));
           }}
-          className="ml-auto text-[11px] font-semibold text-brand-strong cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto cursor-pointer text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
         >
           + 자격·어학 추가
         </button>
