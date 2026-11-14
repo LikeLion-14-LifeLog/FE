@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type {
   Certificate,
   LanguageScore,
   QualificationDraft,
 } from "@/types/spec/qualification";
 import QualificationForm from "./QualificationForm";
+import SavedItemActions from "./SavedItemActions";
+import { formatYearMonth } from "../utils/formatYearMonth";
 
 type Props = {
   certificates: Certificate[];
@@ -15,28 +17,30 @@ type Props = {
   onDeleteLanguage: (id: number) => void;
 };
 
-function isValidDraft(draft: QualificationDraft | null): boolean {
+type Kind = QualificationDraft["kind"];
+
+const validMonth = (value: string) =>
+  !value || /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+
+function isValid(draft: QualificationDraft | null): boolean {
   if (!draft) return false;
 
   if (draft.kind === "certificate") {
-    return draft.value.certificateName.trim() !== "";
+    return (
+      !!draft.value.certificateName.trim() &&
+      validMonth(draft.value.acquiredYearMonth)
+    );
   }
 
-  const { value } = draft;
-  const needsNumeric =
-    value.scoreType === "NUMERIC" ||
-    value.scoreType === "NUMERIC_AND_GRADE";
-  const needsGrade =
-    value.scoreType === "GRADE" ||
-    value.scoreType === "NUMERIC_AND_GRADE";
+  const { languageExamName, scoreNumeric, scoreGrade, expiresYearMonth } =
+    draft.value;
 
   return (
-    value.languageExamName.trim() !== "" &&
-    value.scoreType !== "" &&
-    (!needsNumeric ||
-      (value.scoreNumeric.trim() !== "" &&
-        Number.isFinite(Number(value.scoreNumeric)))) &&
-    (!needsGrade || value.scoreGrade.trim() !== "")
+    !!languageExamName.trim() &&
+    !!(scoreNumeric.trim() || scoreGrade.trim()) &&
+    (!scoreNumeric.trim() ||
+      (Number.isFinite(Number(scoreNumeric)) && Number(scoreNumeric) >= 0)) &&
+    validMonth(expiresYearMonth)
   );
 }
 
@@ -48,241 +52,189 @@ export default function QualificationSection({
   onDeleteCertificate,
   onDeleteLanguage,
 }: Props) {
-  const nextId = useRef(1);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const nextId = useRef(
+    Math.max(
+      0,
+      ...certificates.map((item) => item.localId),
+      ...languageScores.map((item) => item.localId),
+    ) + 1,
+  );
+  const cached = useRef<{
+    certificate?: Certificate;
+    language?: LanguageScore;
+  }>({});
   const [draft, setDraft] = useState<QualificationDraft | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
 
-  const canSave = isValidDraft(draft);
+  const isEditing = draft
+    ? (draft.kind === "certificate" ? certificates : languageScores).some(
+        (item) => item.localId === draft.value.localId,
+      )
+    : false;
 
-  useEffect(() => {
-    if (!showMenu) return;
+  const createDraft = (kind: Kind): QualificationDraft =>
+    kind === "certificate"
+      ? {
+          kind,
+          value: {
+            localId: nextId.current++,
+            specProfileCertificateId: null,
+            certificateId: null,
+            certificateName: "",
+            acquiredYearMonth: "",
+          },
+        }
+      : {
+          kind,
+          value: {
+            localId: nextId.current++,
+            languageExamScoreId: null,
+            languageExamId: null,
+            languageExamName: "",
+            scoreType: "",
+            scoreNumeric: "",
+            scoreGrade: "",
+            acquiredYearMonth: "",
+            expiresYearMonth: "",
+          },
+        };
 
-    const handleOutsideClick = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !menuRef.current?.contains(event.target)
-      ) {
-        setShowMenu(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setShowMenu(false);
-        menuRef.current?.querySelector("button")?.focus();
-      }
-    };
-
-    document.addEventListener("pointerdown", handleOutsideClick);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("pointerdown", handleOutsideClick);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [showMenu]);
-
-  const addCertificate = () => {
-    setDraft({
-      kind: "certificate",
-      value: {
-        localId: nextId.current++,
-        specProfileCertificateId: null,
-        certificateId: null,
-        certificateName: "",
-        acquiredYearMonth: "",
-      },
-    });
-    setShowMenu(false);
-  };
-
-  const addLanguage = () => {
-    setDraft({
-      kind: "language",
-      value: {
-        localId: nextId.current++,
-        languageExamScoreId: null,
-        languageExamId: null,
-        languageExamName: "",
-        scoreType: "",
-        scoreNumeric: "",
-        scoreGrade: "",
-        acquiredYearMonth: "",
-        expiresYearMonth: "",
-      },
-    });
-    setShowMenu(false);
-  };
-
-  const saveDraft = () => {
-    if (!draft || !canSave) return;
+  const switchKind = (kind: Kind) => {
+    if (!draft || isEditing || kind === draft.kind) return;
 
     if (draft.kind === "certificate") {
-      onSaveCertificate(draft.value);
+      cached.current.certificate = draft.value;
     } else {
-      onSaveLanguage(draft.value);
+      cached.current.language = draft.value;
     }
 
+    if (kind === "certificate") {
+      setDraft(
+        cached.current.certificate
+          ? { kind, value: cached.current.certificate }
+          : createDraft(kind),
+      );
+    } else {
+      setDraft(
+        cached.current.language
+          ? { kind, value: cached.current.language }
+          : createDraft(kind),
+      );
+    }
+  };
+
+  const save = () => {
+    if (!draft || !isValid(draft)) return;
+    if (draft.kind === "certificate") onSaveCertificate(draft.value);
+    else onSaveLanguage(draft.value);
+
+    cached.current = {};
+    setDraft(null);
+  };
+
+  const cancel = () => {
+    cached.current = {};
     setDraft(null);
   };
 
   return (
     <section className="border-b border-border pb-6">
-      <div className="mb-5 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
           03
         </span>
-        <h2 className="text-[15px] font-semibold text-text-primary">
+        <h2 className="text-[15px] font-medium ext-text-primary">
           자격 및 어학
         </h2>
-        <span className="text-[11px] text-text-muted">선택</span>
-
-        <div ref={menuRef} className="relative ml-auto">
-          <button
-            type="button"
-            aria-expanded={showMenu}
-            aria-controls="qualification-add-menu"
-            disabled={draft !== null}
-            onClick={() => setShowMenu((prev) => !prev)}
-            className="text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            + 자격·어학 추가
-          </button>
-
-          {showMenu && (
-            <div
-              id="qualification-add-menu"
-              className="absolute top-full right-0 z-10 mt-2 w-32 rounded-lg border border-border bg-white p-1 shadow-sm"
-            >
-              <button
-                type="button"
-                onClick={addCertificate}
-                className="w-full rounded-md px-3 py-2 text-left text-[12px] text-text-primary hover:bg-brand-soft"
-              >
-                자격증
-              </button>
-              <button
-                type="button"
-                onClick={addLanguage}
-                className="w-full rounded-md px-3 py-2 text-left text-[12px] text-text-primary hover:bg-brand-soft"
-              >
-                어학시험
-              </button>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          disabled={draft !== null}
+          onClick={() => {
+            cached.current = {};
+            setDraft(createDraft("certificate"));
+          }}
+          className="ml-auto text-[11px] font-semibold text-brand-strong cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          + 자격·어학 추가
+        </button>
       </div>
 
       {certificates
         .filter(
           (item) =>
-            !(
-              draft?.kind === "certificate" &&
-              draft.value.localId === item.localId
-            ),
+            draft?.kind !== "certificate" ||
+            item.localId !== draft.value.localId,
         )
         .map((item) => (
           <div
             key={`certificate-${item.localId}`}
-            className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4"
+            className="border-b border-border py-4 last:border-b-0"
           >
-            <div className="min-w-0">
-              <p className="break-words text-[13px] font-semibold text-text-primary">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 break-words text-[12px] font-semibold text-text-primary">
+                <span className="text-brand-strong">자격증</span>
+                <span className="mx-2 text-text-muted">|</span>
                 {item.certificateName}
               </p>
-              <p className="mt-1 text-[11px] text-text-secondary">
-                자격증
-                {item.acquiredYearMonth && ` · ${item.acquiredYearMonth}`}
-                {item.certificateId == null && " · 임시 등록"}
-              </p>
-            </div>
-
-            <div className="flex shrink-0 gap-3 text-[11px]">
-              <button
-                type="button"
+              <SavedItemActions
                 disabled={draft !== null}
-                onClick={() =>
-                  setDraft({
-                    kind: "certificate",
-                    value: { ...item },
-                  })
+                onEdit={() =>
+                  setDraft({ kind: "certificate", value: { ...item } })
                 }
-                className="text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                disabled={draft !== null}
-                onClick={() => onDeleteCertificate(item.localId)}
-                className="text-text-secondary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                삭제
-              </button>
+                onDelete={() => onDeleteCertificate(item.localId)}
+              />
             </div>
+            {item.acquiredYearMonth && (
+              <p className="mt-2 text-[11px] text-text-secondary">
+                {formatYearMonth(item.acquiredYearMonth)} 취득
+              </p>
+            )}
           </div>
         ))}
 
       {languageScores
         .filter(
           (item) =>
-            !(
-              draft?.kind === "language" &&
-              draft.value.localId === item.localId
-            ),
+            draft?.kind !== "language" ||
+            item.localId !== draft.value.localId,
         )
         .map((item) => (
           <div
             key={`language-${item.localId}`}
-            className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4"
+            className="border-b border-border py-4 last:border-b-0"
           >
-            <div className="min-w-0">
-              <p className="break-words text-[13px] font-semibold text-text-primary">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 break-words text-[12px] font-semibold text-text-primary">
+                <span className="text-brand-strong">어학</span>
+                <span className="mx-2 text-text-muted">|</span>
                 {item.languageExamName}
+                {item.scoreNumeric && ` ${item.scoreNumeric}`}
+                {item.scoreGrade && ` ${item.scoreGrade}`}
               </p>
-              <p className="mt-1 text-[11px] text-text-secondary">
-                어학
-                {item.scoreNumeric && ` · ${item.scoreNumeric}점`}
-                {item.scoreGrade && ` · ${item.scoreGrade}`}
-                {item.acquiredYearMonth && ` · ${item.acquiredYearMonth}`}
-                {item.languageExamId == null && " · 임시 등록"}
-              </p>
-            </div>
-
-            <div className="flex shrink-0 gap-3 text-[11px]">
-              <button
-                type="button"
+              <SavedItemActions
                 disabled={draft !== null}
-                onClick={() =>
-                  setDraft({
-                    kind: "language",
-                    value: { ...item },
-                  })
+                onEdit={() =>
+                  setDraft({ kind: "language", value: { ...item } })
                 }
-                className="text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                disabled={draft !== null}
-                onClick={() => onDeleteLanguage(item.localId)}
-                className="text-text-secondary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                삭제
-              </button>
+                onDelete={() => onDeleteLanguage(item.localId)}
+              />
             </div>
+            {item.expiresYearMonth && (
+              <p className="mt-2 text-[11px] text-text-secondary">
+                유효기간 {formatYearMonth(item.expiresYearMonth)}
+              </p>
+            )}
           </div>
         ))}
 
       {draft && (
         <QualificationForm
           draft={draft}
-          canSave={canSave}
+          canSave={isValid(draft)}
+          canSwitchKind={!isEditing}
+          onSwitchKind={switchKind}
           onChange={setDraft}
-          onSave={saveDraft}
-          onCancel={() => setDraft(null)}
+          onSave={save}
+          onCancel={cancel}
         />
       )}
     </section>

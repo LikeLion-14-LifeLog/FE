@@ -25,7 +25,7 @@ export default function BasicInfoSection({
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-strong">
           01
         </span>
-        <h2 className="text-[15px] font-semibold text-text-primary">
+        <h2 className="text-[15px] font-medium text-text-primary">
           기본 정보 <span className="text-brand">*</span>
         </h2>
       </div>
@@ -54,7 +54,7 @@ export default function BasicInfoSection({
               onChange={(e) =>
                 onChange({ ...value, residenceRegion: e.target.value })
               }
-              className={`${fieldClass} appearance-none pr-10`}
+              className={`${fieldClass} cursor-pointer appearance-none pr-10`}
             >
               <option value="" disabled>
                 선택해 주세요
@@ -75,30 +75,23 @@ export default function BasicInfoSection({
         </label>
 
         <div className="col-span-2 flex flex-col gap-2">
-          <label
-            htmlFor="desired-job"
-            className="text-[12px] font-medium text-text-primary"
-          >
+          <span className="text-[12px] font-medium text-text-primary">
             희망 직무
-          </label>
-          <div className="flex h-10 overflow-hidden rounded-lg border border-border focus-within:border-brand focus-within:ring-1 focus-within:ring-brand">
-            <input
-              id="desired-job"
-              type="text"
-              readOnly
-              value={value.jobName}
-              placeholder="직무를 검색해 선택해 주세요"
-              className="min-w-0 flex-1 bg-white px-3 text-[12px] outline-none"
-            />
-            {/* TODO: GET /api/jobs에서 jobId와 name 선택 */}
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="px-3 text-[11px] font-semibold text-brand-strong"
-            >
+          </span>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 text-left transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            <span className={`min-w-0 truncate text-[12px] ${
+              value.jobName ? "text-text-primary" : "text-text-muted"
+            }`}>
+              {value.jobName || "직무를 검색해 선택해 주세요"}
+            </span>
+            <span className="shrink-0 text-[11px] font-semibold text-brand-strong">
               검색
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
       </div>
 
