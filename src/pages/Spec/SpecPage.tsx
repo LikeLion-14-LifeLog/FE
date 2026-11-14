@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getSpecFormOptions, saveSpecProfileMock, type SpecProfileDraft } from "@/apis/spec";
+import {
+  getSpecFormOptions,
+  saveSpecProfileMock,
+  type SpecProfileDraft,
+} from "@/apis/spec";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
 import type { Certificate, LanguageScore } from "@/types/spec/qualification";
@@ -9,6 +13,13 @@ import EducationSection from "./components/EducationSection";
 import QualificationSection from "./components/QualificationSection";
 import ExperienceSection from "./components/ExperienceSection";
 import SpecFooter from "./components/SpecFooter";
+import {
+  isValidBasicInfo,
+  isValidEducation,
+  isValidCertificate,
+  isValidLanguage,
+  isValidExperience,
+} from "./utils/specValidation";
 
 const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
   items.some((item) => item.localId === value.localId)
@@ -17,7 +28,10 @@ const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
 
 export default function SpecPage() {
   const [basicInfo, setBasicInfo] = useState<BasicInfo>({
-    birthYear: "", residenceRegion: "", jobId: null, jobName: "",
+    birthYear: "",
+    residenceRegion: "",
+    jobId: null,
+    jobName: "",
   });
   const [educations, setEducations] = useState<Education[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -30,40 +44,46 @@ export default function SpecPage() {
 
   useEffect(() => {
     let active = true;
+
     getSpecFormOptions()
-      .then((data) => { if (active) setOptions(data); })
-      .catch(() => { if (active) setOptionsError(true); });
-    return () => { active = false; };
+      .then((data) => {
+        if (active) setOptions(data);
+      })
+      .catch(() => {
+        if (active) setOptionsError(true);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const year = Number(basicInfo.birthYear);
   const validBasic =
-    !!basicInfo.birthYear.trim() &&
-    Number.isInteger(year) &&
-    year >= 1 &&
-    year <= new Date().getFullYear() &&
-    !!options?.residentialAreas.some(
-      (area) => area.code === basicInfo.residenceRegion,
-    ) &&
-    !!basicInfo.jobName.trim();
+    options !== null &&
+    isValidBasicInfo(basicInfo, options.residentialAreas);
 
   const validEducation =
+    options !== null &&
     educations.length > 0 &&
-    educations.every((item) =>
-      !!item.type.trim() &&
-      !!item.location.trim() &&
-      (!(item.majorAffiliation || item.majorName || item.majorId != null) ||
-        (!!item.majorAffiliation.trim() && !!item.majorName.trim())),
-    );
+    educations.every((item) => isValidEducation(item, options));
 
-  const canDiagnose = validBasic && validEducation;
+  const validOptional =
+    certificates.every(isValidCertificate) &&
+    languageScores.every(isValidLanguage) &&
+    experiences.every(isValidExperience);
+
+  const canDiagnose = validBasic && validEducation && validOptional;
   const clearNotice = () => setNotice("");
 
   const handleSave = async () => {
     if (saving) return;
 
     const profile: SpecProfileDraft = {
-      basicInfo, educations, certificates, languageScores, experiences,
+      basicInfo,
+      educations,
+      certificates,
+      languageScores,
+      experiences,
     };
 
     setSaving(true);
@@ -90,6 +110,7 @@ export default function SpecPage() {
   return (
     <div className="w-full pb-28">
       <div className="mb-6 border-t border-border-strong" />
+
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-8 lg:border-r lg:border-border lg:pr-8">
           <BasicInfoSection
@@ -100,6 +121,7 @@ export default function SpecPage() {
               clearNotice();
             }}
           />
+
           <EducationSection
             educations={educations}
             options={options}
@@ -114,6 +136,7 @@ export default function SpecPage() {
               clearNotice();
             }}
           />
+
           <QualificationSection
             certificates={certificates}
             languageScores={languageScores}
@@ -139,6 +162,7 @@ export default function SpecPage() {
             }}
           />
         </div>
+
         <ExperienceSection
           experiences={experiences}
           onSave={(value) => {

@@ -4,6 +4,7 @@ import type { SpecFormOptions } from "@/types/spec/profile";
 import EducationForm from "./EducationForm";
 import SavedItemActions from "./SavedItemActions";
 import { formatYearMonth } from "../utils/formatYearMonth";
+import { isValidEducation } from "../utils/specValidation";
 
 type Props = {
   educations: Education[];
@@ -26,11 +27,6 @@ const createEducation = (localId: number): Education => ({
   majorName: "",
 });
 
-const formatDate = (value: string) => {
-  const [year, month] = value.split("-");
-  return year && month ? `${year}.${Number(month)}` : "";
-};
-
 export default function EducationSection({
   educations,
   options,
@@ -44,16 +40,15 @@ export default function EducationSection({
     educations.length ? null : createEducation(1),
   );
 
-  const hasMajor = Boolean(draft?.majorAffiliation || draft?.majorName);
-  const canSave = Boolean(
-    draft?.type &&
-      draft.location &&
-      (!hasMajor || (draft.majorAffiliation && draft.majorName.trim())) &&
-      (!draft.graduatedYearMonth ||
-        /^\d{4}-(0[1-9]|1[0-2])$/.test(draft.graduatedYearMonth)),
-  );
+  const canSave = draft !== null && isValidEducation(draft, options);
 
-  const add = () => setDraft(createEducation(nextId.current++));
+  const add = () => {
+    nextId.current = Math.max(
+      nextId.current,
+      ...educations.map((item) => item.localId + 1),
+    );
+    setDraft(createEducation(nextId.current++));
+  };
 
   const save = () => {
     if (!draft || !canSave) return;
@@ -79,7 +74,7 @@ export default function EducationSection({
           type="button"
           disabled={draft !== null}
           onClick={add}
-          className="ml-auto text-[11px] font-semibold text-brand-strong cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto cursor-pointer text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
         >
           + 학력 추가
         </button>
@@ -102,16 +97,19 @@ export default function EducationSection({
             (option) => option.value === item.majorAffiliation,
           )?.label.replace(/계열$/, " 계열");
 
-          // TODO(API 명세 협의): 학위 ENUM과 대학/대학원 구분 기준 확정
+          // TODO(API 명세 협의): 학위 ENUM과 학교 구분 기준 확정
           const school =
-            item.type === "MASTER" ? "대학원" : "대학";
+            item.type === "MASTER"
+              ? "대학원"
+              : "대학";
 
-          // TODO(API 명세 협의): Figma의 졸업/졸업 예정 표시를
-          // 실제 학적 상태와 매핑할 방법 확정
+          // TODO(API 명세 협의): 실제 학적 상태 ENUM과 표시 정책 확정
           const graduationStatus =
-            item.type === "HIGH_SCHOOL" || item.status === "ATTENDING"
+            item.status === "ATTENDING"
               ? "졸업 예정"
-              : "졸업";
+              : item.status === "GRADUATED"
+                ? "졸업"
+                : "";
 
           return (
             <div
@@ -127,7 +125,6 @@ export default function EducationSection({
                     {degree}
                   </span>
                 </div>
-
                 <SavedItemActions
                   disabled={draft !== null}
                   onEdit={() => setDraft({ ...item })}
@@ -142,7 +139,6 @@ export default function EducationSection({
                       {item.majorName}
                     </span>
                   )}
-
                   {item.majorName && majorField && (
                     <span
                       aria-hidden="true"
@@ -151,7 +147,6 @@ export default function EducationSection({
                       |
                     </span>
                   )}
-
                   {majorField && (
                     <span className="text-[11px] text-text-secondary">
                       {majorField}
@@ -167,23 +162,23 @@ export default function EducationSection({
                       {item.universityGrade}
                     </span>
                   )}
-
                   {item.universityStandardGrade && (
                     <span className="text-[11px] text-text-muted">
                       / {item.universityStandardGrade}
                     </span>
                   )}
                 </div>
-
                 <div className="flex shrink-0 items-baseline gap-2 text-[11px]">
                   {item.graduatedYearMonth && (
                     <span className="text-text-muted">
-                      {formatDate(item.graduatedYearMonth)}
+                      {formatYearMonth(item.graduatedYearMonth)}
                     </span>
                   )}
-                  <span className="font-semibold text-brand-strong">
-                    {graduationStatus}
-                  </span>
+                  {graduationStatus && (
+                    <span className="font-semibold text-brand-strong">
+                      {graduationStatus}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

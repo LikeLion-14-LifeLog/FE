@@ -10,6 +10,10 @@ import {
   cancelClass,
   saveClass,
 } from "./formStyles";
+import {
+  currentYearMonth,
+  isValidGrade,
+} from "../utils/specValidation";
 
 type Props = {
   value: Education;
@@ -38,6 +42,19 @@ export default function EducationForm({
   onCancel,
 }: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const invalidGrade =
+    !!value.universityGrade &&
+    !!value.universityStandardGrade &&
+    !isValidGrade(
+      value.universityGrade,
+      value.universityStandardGrade,
+    );
+
+  const invalidGraduation =
+    value.status === "GRADUATED" &&
+    !!value.graduatedYearMonth &&
+    value.graduatedYearMonth > currentYearMonth();
 
   return (
     <div className="rounded-xl border border-border bg-white p-5">
@@ -130,10 +147,20 @@ export default function EducationForm({
           <YearMonthField
             label="졸업(예정) 시기"
             value={value.graduatedYearMonth}
+            max={
+              value.status === "GRADUATED"
+                ? currentYearMonth()
+                : undefined
+            }
             onChange={(graduatedYearMonth) =>
               onChange({ graduatedYearMonth })
             }
           />
+          {invalidGraduation && (
+            <p role="alert" className="mt-2 text-[11px] text-red-500">
+              졸업 시기는 현재 연월 이후일 수 없습니다.
+            </p>
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
@@ -147,14 +174,18 @@ export default function EducationForm({
             <input
               id={`grade-${value.localId}`}
               type="number"
-              min="0"
+              min={0}
+              max={value.universityStandardGrade || undefined}
               step="0.01"
               value={value.universityGrade}
               onChange={(e) =>
                 onChange({ universityGrade: e.target.value })
               }
+              aria-invalid={invalidGrade}
               placeholder="취득 학점"
-              className={`${fieldClass} flex-1`}
+              className={`${fieldClass} flex-1 ${
+                invalidGrade ? "border-red-400" : ""
+              }`}
             />
             <span className="text-[12px] text-text-muted">/</span>
             <div className="relative w-24 shrink-0">
@@ -176,6 +207,12 @@ export default function EducationForm({
               {arrow}
             </div>
           </div>
+          {invalidGrade && (
+            <p role="alert" className="text-[11px] text-red-500">
+              학점은 0 이상 {value.universityStandardGrade} 이하로
+              소수점 둘째 자리까지 입력해 주세요.
+            </p>
+          )}
         </div>
       </div>
 

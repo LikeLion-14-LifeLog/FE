@@ -6,6 +6,7 @@ import {
   cancelClass,
   saveClass,
 } from "./formStyles";
+import { currentYearMonth } from "../utils/specValidation";
 
 type Props = {
   value: Experience;
@@ -24,10 +25,16 @@ export default function ExperienceForm({
   onSave,
   onCancel,
 }: Props) {
+  const currentMonth = currentYearMonth();
+
   const invalidPeriod =
     !!value.startedYearMonth &&
     !!value.endedYearMonth &&
     value.startedYearMonth > value.endedYearMonth;
+
+  const invalidFuture =
+    value.startedYearMonth > currentMonth ||
+    value.endedYearMonth > currentMonth;
 
   return (
     <div className="rounded-xl border border-border bg-white p-5">
@@ -87,6 +94,13 @@ export default function ExperienceForm({
             <input
               type="month"
               aria-label="활동 시작 연월"
+              min="1900-01"
+              max={
+                value.endedYearMonth &&
+                value.endedYearMonth < currentMonth
+                  ? value.endedYearMonth
+                  : currentMonth
+              }
               value={value.startedYearMonth}
               onChange={(e) =>
                 onChange({ startedYearMonth: e.target.value })
@@ -98,8 +112,9 @@ export default function ExperienceForm({
             <input
               type="month"
               aria-label="활동 종료 연월"
+              min={value.startedYearMonth || "1900-01"}
+              max={currentMonth}
               value={value.endedYearMonth}
-              min={value.startedYearMonth || undefined}
               onChange={(e) =>
                 onChange({ endedYearMonth: e.target.value })
               }
@@ -109,8 +124,14 @@ export default function ExperienceForm({
           </div>
 
           {invalidPeriod && (
-            <p role="alert" className="text-[11px] text-text-secondary">
+            <p role="alert" className="text-[11px] text-red-500">
               종료 연월은 시작 연월보다 빠를 수 없습니다.
+            </p>
+          )}
+
+          {invalidFuture && (
+            <p role="alert" className="text-[11px] text-red-500">
+              활동 기간은 현재 연월 이후일 수 없습니다.
             </p>
           )}
         </div>
@@ -137,7 +158,7 @@ export default function ExperienceForm({
         <button
           type="button"
           onClick={onSave}
-          disabled={!canSave || invalidPeriod}
+          disabled={!canSave}
           className={saveClass}
         >
           저장

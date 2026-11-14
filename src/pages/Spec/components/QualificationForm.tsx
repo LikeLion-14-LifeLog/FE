@@ -15,6 +15,10 @@ import {
   saveClass,
   dateClass,
 } from "./formStyles";
+import {
+  currentYearMonth,
+  isValidYearMonth,
+} from "../utils/specValidation";
 
 type Props = {
   draft: QualificationDraft;
@@ -63,6 +67,16 @@ export default function QualificationForm({
       });
     }
   };
+
+  const invalidScore =
+    draft.kind === "language" &&
+    !!draft.value.scoreNumeric.trim() &&
+    !/^\d+(\.\d+)?$/.test(draft.value.scoreNumeric.trim());
+
+  const invalidExpiry =
+    draft.kind === "language" &&
+    !!draft.value.expiresYearMonth &&
+    !isValidYearMonth(draft.value.expiresYearMonth);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-white">
@@ -141,6 +155,7 @@ export default function QualificationForm({
             <YearMonthField
               label="취득 시기"
               value={draft.value.acquiredYearMonth}
+              max={currentYearMonth()}
               onChange={(acquiredYearMonth) =>
                 updateCertificate({ acquiredYearMonth })
               }
@@ -187,10 +202,19 @@ export default function QualificationForm({
                   onChange={(event) =>
                     updateLanguage({ scoreNumeric: event.target.value })
                   }
+                  aria-invalid={invalidScore}
                   placeholder="예: 865"
-                  className={fieldClass}
+                  className={`${fieldClass} ${
+                    invalidScore ? "border-red-400" : ""
+                  }`}
                 />
+                {invalidScore && (
+                  <span className="text-[11px] font-normal text-red-500">
+                    0 이상의 점수를 입력해 주세요.
+                  </span>
+                )}
               </label>
+
               <label className={labelClass}>
                 등급
                 <input
@@ -209,15 +233,22 @@ export default function QualificationForm({
               유효기간 만료일
               <input
                 type="month"
+                min="1900-01"
                 value={draft.value.expiresYearMonth}
                 onChange={(event) =>
                   updateLanguage({ expiresYearMonth: event.target.value })
                 }
-                onClick={(event) =>
-                  event.currentTarget.showPicker?.()
-                }
-                className={dateClass}
+                onClick={(event) => event.currentTarget.showPicker?.()}
+                aria-invalid={invalidExpiry}
+                className={`${dateClass} ${
+                  invalidExpiry ? "border-red-400" : ""
+                }`}
               />
+              {invalidExpiry && (
+                <span className="text-[11px] font-normal text-red-500">
+                  유효한 연월을 선택해 주세요.
+                </span>
+              )}
             </label>
           </div>
         )}

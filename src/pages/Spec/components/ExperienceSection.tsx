@@ -3,6 +3,7 @@ import type { Experience } from "@/types/spec/experience";
 import ExperienceForm from "./ExperienceForm";
 import SavedItemActions from "./SavedItemActions";
 import { formatYearMonth } from "../utils/formatYearMonth";
+import { isValidExperience } from "../utils/specValidation";
 
 type Props = {
   experiences: Experience[];
@@ -24,9 +25,6 @@ const createExperience = (localId: number): Experience => ({
   awardGrade: "",
 });
 
-const validMonth = (value: string) =>
-  !value || /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
-
 export default function ExperienceSection({
   experiences,
   onSave,
@@ -37,16 +35,7 @@ export default function ExperienceSection({
   );
   const [draft, setDraft] = useState<Experience | null>(null);
 
-  const canSave =
-    !!draft?.type &&
-    !!draft.title.trim() &&
-    draft.title.length <= 255 &&
-    draft.description.length <= 300 &&
-    validMonth(draft.startedYearMonth) &&
-    validMonth(draft.endedYearMonth) &&
-    (!draft.startedYearMonth ||
-      !draft.endedYearMonth ||
-      draft.startedYearMonth <= draft.endedYearMonth);
+  const canSave = draft !== null && isValidExperience(draft);
 
   const activityIndex = draft
     ? experiences.findIndex((item) => item.localId === draft.localId)
@@ -54,6 +43,14 @@ export default function ExperienceSection({
 
   const activityNumber =
     activityIndex < 0 ? experiences.length + 1 : activityIndex + 1;
+
+  const add = () => {
+    nextId.current = Math.max(
+      nextId.current,
+      ...experiences.map((item) => item.localId + 1),
+    );
+    setDraft(createExperience(nextId.current++));
+  };
 
   const save = () => {
     if (!draft || !canSave) return;
@@ -75,8 +72,8 @@ export default function ExperienceSection({
         <button
           type="button"
           disabled={draft !== null}
-          onClick={() => setDraft(createExperience(nextId.current++))}
-          className="ml-auto text-[11px] font-semibold text-brand-strong cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={add}
+          className="ml-auto cursor-pointer text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
         >
           + 새 활동 등록
         </button>
