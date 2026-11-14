@@ -9,10 +9,12 @@ const steps = [
 
 type DiagnosisProgressProps = {
   activeStep?: number;
+  cancelled?: boolean;
 };
 
 export default function DiagnosisProgress({
   activeStep = 1,
+  cancelled = false,
 }: DiagnosisProgressProps) {
   return (
     <div
@@ -21,8 +23,8 @@ export default function DiagnosisProgress({
       className="grid w-full grid-cols-1 items-center gap-y-4 border-y border-border/40 py-5 sm:grid-cols-[minmax(0,1fr)_20px_minmax(0,1fr)_20px_minmax(0,1fr)] sm:gap-x-4 sm:py-4"
     >
       {steps.map((step, index) => {
-        const completed = index < activeStep;
-        const active = index === activeStep;
+        const completed = !cancelled && index < activeStep;
+        const active = !cancelled && index === activeStep;
 
         return (
           <Fragment key={step}>
@@ -42,7 +44,7 @@ export default function DiagnosisProgress({
               >
                 <span
                   aria-hidden="true"
-                  className={`absolute text-[10px] font-semibold transition-opacity duration-500 motion-reduce:transition-none ${
+                  className={`absolute translate-y-[1px] text-[10px] font-semibold transition-opacity duration-500 motion-reduce:transition-none ${
                     completed ? "opacity-0" : "opacity-100"
                   } ${active ? "text-white" : "text-text-muted"}`}
                 >
@@ -59,7 +61,7 @@ export default function DiagnosisProgress({
               </span>
 
               <span
-                className={`min-w-0 text-left text-[12px] font-bold leading-5 transition-colors duration-700 ease-in-out motion-reduce:transition-none ${
+                className={`min-w-0 text-left text-[13px] font-semibold leading-5 transition-colors duration-700 ease-in-out motion-reduce:transition-none ${
                   completed
                     ? "text-brand/70"
                     : active
@@ -71,7 +73,13 @@ export default function DiagnosisProgress({
               </span>
 
               <span className="sr-only">
-                {completed ? "완료" : active ? "진행 중" : "진행 전"}
+                {cancelled
+                  ? "분석 취소됨"
+                  : completed
+                    ? "완료"
+                    : active
+                      ? "진행 중"
+                      : "진행 전"}
               </span>
             </div>
 
