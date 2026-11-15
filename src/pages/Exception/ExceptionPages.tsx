@@ -116,45 +116,12 @@ export const LoginRequiredPage = () => {
   );
 };
 
-type MaintenancePageProps = {
-  schedule?: string;
-  noticeUrl?: string;
-};
-
-export const MaintenancePage = ({
-  schedule = "2026.11.10 (화) 02:00 ~ 06:00",
-  noticeUrl = "/",
-}: MaintenancePageProps) => {
-  const navigate = useNavigate();
+export const MaintenancePage = () => {
   return (
     <ExceptionLayout
       icon={ICON.maintenance}
       title="더 나은 서비스를 위해 점검 중이에요"
       description="점검 시간 동안 서비스 이용이 잠시 중단돼요."
-      extra={
-        <span className="inline-flex items-center gap-2 rounded-full border border-[#99f6e4] bg-white/60 px-4 py-2 text-[14px] leading-[17px] font-medium text-[#0f766e]">
-          <svg
-            aria-hidden
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-          {schedule}
-        </span>
-      }
-      actions={
-        <ExceptionPrimaryButton onClick={() => navigate(noticeUrl)}>
-          공지사항 보기
-        </ExceptionPrimaryButton>
-      }
     />
   );
 };
