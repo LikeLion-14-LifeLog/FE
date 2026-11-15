@@ -4,7 +4,7 @@
  */
 import type { DashboardData } from "@/types/dashboard";
 
-/** 진단 전 화면 확인: diagnosis 를 null 로 변경 */
+/** 진단 결과는 진단을 마친 사용자에게만 표시된다 (DashBoardPage 참고) */
 export const MOCK_DASHBOARD: DashboardData = {
   major: "AI응용학과",
   diagnosis: {
