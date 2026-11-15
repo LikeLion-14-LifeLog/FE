@@ -4,7 +4,9 @@ import GlowEllipse from "./GlowEllipse";
 type AuthBackgroundProps = {
   children?: ReactNode;
   header?: ReactNode;
-  variant?: "default" | "signup";
+  variant?: "default" | "signup" | "exception";
+  /** main 영역 정렬 (기본: 세로 중앙) */
+  mainClassName?: string;
 };
 
 const BLOBS = {
@@ -20,6 +22,18 @@ const BLOBS = {
     { size: 420, color: "#2dd4bf", opacity: 0.38, left: 559, top: 185 },
     { size: 380, color: "#5eead4", opacity: 0.32, left: 979, top: 355 },
   ],
+  exception: [
+    { size: 560, color: "#99f6e4", opacity: 0.35, left: 400, top: 150 },
+    { size: 480, color: "#ccfbf1", opacity: 0.45, left: 1200, top: 510 },
+    { size: 440, color: "#2dd4bf", opacity: 0.3, left: 700, top: 190 },
+  ],
+};
+
+/* 원형 라인 · lifelog 워터마크 위치 (배경 상단 기준) */
+const DECOR_TOP = {
+  default: { ring: 151, text: 201 },
+  signup: { ring: 151, text: 201 },
+  exception: { ring: -20, text: 195 },
 };
 
 const Dot = ({ left, top }: { left: number; top: number }) => (
@@ -33,7 +47,9 @@ const AuthBackground = ({
   children,
   header,
   variant = "default",
+  mainClassName = "justify-center pt-8 pb-6",
 }: AuthBackgroundProps) => {
+  const decor = DECOR_TOP[variant];
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-white font-sans">
       <div
@@ -48,7 +64,10 @@ const AuthBackground = ({
           <GlowEllipse key={`${left}-${top}`} {...blob} style={{ left, top }} />
         ))}
 
-        <div className="absolute top-[151px] left-[599px] size-[720px]">
+        <div
+          className="absolute left-[599px] size-[720px]"
+          style={{ top: decor.ring }}
+        >
           <div className="absolute top-20 left-20 size-[560px] rounded-full border border-dashed border-[rgba(13,148,136,0.22)]">
             <Dot left={491.03} top={83.69} />
             <Dot left={111.59} top={446.39} />
@@ -59,14 +78,18 @@ const AuthBackground = ({
           </div>
         </div>
 
-        <p className="absolute top-[201px] left-[600.5px] text-[260px] leading-[390px] font-extrabold tracking-[-7px] whitespace-nowrap text-[rgba(13,148,136,0.04)] select-none">
+        <p
+          style={{ top: decor.text }}
+          className="absolute left-[600.5px] text-[260px] leading-[390px] font-extrabold tracking-[-7px] whitespace-nowrap text-[rgba(13,148,136,0.04)] select-none">
           lifelog
         </p>
       </div>
 
       {header && <div className="relative z-20 shrink-0">{header}</div>}
 
-      <main className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 pt-8 pb-6">
+      <main
+        className={`relative z-10 flex w-full flex-1 flex-col items-center px-4 ${mainClassName}`}
+      >
         {children}
       </main>
     </div>

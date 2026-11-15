@@ -13,6 +13,13 @@ import JobChancePage from "@/pages/JobChance/JobChancePage";
 import JobDetailPage from "@/pages/JobChance/JobDetailPage";
 import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
 import LandingPage from "@/pages/Landing/LandingPage";
+import {
+  LoginRequiredPage,
+  MaintenancePage,
+  NetworkErrorPage,
+  ServerErrorPage,
+  SpecUnavailablePage,
+} from "@/pages/Exception/ExceptionPages";
 
 const router = createBrowserRouter([
   {
@@ -75,6 +82,12 @@ const router = createBrowserRouter([
   { path: "/signup", element: <SignupPage /> },
   { path: "/password-reset", element: <PasswordResetPage /> },
   { path: "/welcome", element: <WelcomePage /> },
+  // 예외 페이지
+  { path: "/error/500", element: <ServerErrorPage /> },
+  { path: "/error/network", element: <NetworkErrorPage /> },
+  { path: "/error/login-required", element: <LoginRequiredPage /> },
+  { path: "/error/maintenance", element: <MaintenancePage /> },
+  { path: "/error/spec-unavailable", element: <SpecUnavailablePage /> },
   { path: "*", element: <NotFoundPage /> },
   { path: "/", element: <LandingPage /> },
 ]);
