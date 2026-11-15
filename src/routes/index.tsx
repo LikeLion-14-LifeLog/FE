@@ -4,7 +4,9 @@ import LoginPage from "@/pages/Login/LoginPage";
 import SignupPage from "@/pages/Login/SignupPage";
 import PasswordResetPage from "@/pages/Login/PasswordResetPage";
 import WelcomePage from "@/pages/Login/WelcomePage";
-import SpecPage from "@/pages/Spec/SpecPage";
+import SpecEntryPage from "@/pages/Spec/SpecEntryPage";
+import DiagnosisLoadingPage from "@/pages/Diagnosis/DiagnosisLoadingPage";
+import DiagnosisResultPage from "@/pages/Diagnosis/DiagnosisResultPage";
 import CareerPage from "@/pages/Career/CareerPage";
 import CareerDetailPage from "@/pages/Career/CareerDetailPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
@@ -52,12 +54,26 @@ const router = createBrowserRouter([
       },
       {
         path: "/spec",
-        element: <SpecPage />,
+        element: <SpecEntryPage />,
         handle: {
           eyebrow: "MY CAREER PROFILE",
           title: "내 커리어 프로필",
           description:
             "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 활용되며, 이 페이지에서 언제든 수정할 수 있습니다.",
+        },
+      },
+      {
+        path: "/diagnosis/loading",
+        element: <DiagnosisLoadingPage />,
+      },
+      {
+        path: "/diagnosis/result",
+        element: <DiagnosisResultPage />,
+        handle: {
+          eyebrow: "SALARY DIAGNOSIS REPORT",
+          title: "내 조건 기반 예상 연봉 진단 결과",
+          description:
+            "등록한 스펙을 바탕으로 분석 결과를 확인합니다.",
         },
       },
       {
