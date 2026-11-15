@@ -1,193 +1,125 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import SalaryChart from "@/components/SalaryChart";
 import chevronDown from "@/assets/icons/chevronDown.svg";
+import { getDiagnosisView, type DiagnosisViewState } from "@/apis/diagnosis";
+import { useCurrentUser } from "@/store/authStore";
 import type { SalaryResult } from "@/types/diagnosis";
 
-// GET /api/spec-profile/analyzation/runs/{runId} 완료 응답 예시
-const salaryResults: SalaryResult[] = [
-  {
-    annual: 0,
-    annualIncomeMin: 34000000,
-    annualIncomeExpected: 36000000,
-    annualIncomeMax: 38000000,
-    topPercent: 28,
-  },
-  {
-    annual: 3,
-    annualIncomeMin: 41000000,
-    annualIncomeExpected: 44500000,
-    annualIncomeMax: 48000000,
-    topPercent: null,
-  },
-  {
-    annual: 5,
-    annualIncomeMin: 50000000,
-    annualIncomeExpected: 54500000,
-    annualIncomeMax: 60000000,
-    topPercent: null,
-  },
-];
-
-const diagnosisDetail = {
-  comparisonGroup: {
-    jobSubCategoryName: "소프트웨어 개발자",
-    sampleCount: 120,
-    observationYears: [2021, 2022, 2023, 2024],
-    description:
-      "소프트웨어 개발 직무 이력이 있고 입력한 학력·전공·지역 조건에 부합하는 KEEPⅡ 응답자입니다. 학점·어학·자격증 개수의 유사도를 반영해 개인별 비교 연도를 선택했습니다.",
-  },
-  appliedSpecs: {
-    jobName: "소프트웨어 개발자",
-    academicAbilities: [
-      {
-        type: "UNIVERSITY",
-        majorName: "소프트웨어학",
-        universityGrade: 3.86,
-        universityStandardGrade: 4.5,
-      },
-    ],
-    certificates: [
-      { certificateId: 710, certificateName: "SQL 개발자(SQLD)" },
-    ],
-    languageExamScores: [
-      {
-        languageExamId: 1,
-        languageExamName: "TOEIC",
-        scoreNumeric: 865,
-        scoreGrade: null,
-      },
-    ],
-  },
-  recommendation:
-    "프로젝트 경험을 직무 성과 중심으로 구체화하고 배포·운영 경험을 보완해 보세요.",
-  salaryNotice:
-    "한국교육고용패널Ⅱ(KEEPⅡ) 비교표본 기반 · 금액은 원화 연환산 · 연차별 연봉과 음영 범위는 AI 추정값 · 상위 비율은 비교 표본 내 순위",
-};
-
 const formatSalary = (won: number) =>
-  (won / 10000).toLocaleString("ko-KR", {
-    maximumFractionDigits: 1,
-  });
+  (won / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 
-const hasValidSalaryResults =
-  salaryResults.length === 3 &&
-  [0, 3, 5].every(
-    (year) =>
-      salaryResults.filter(
-        (item) =>
-          item.annual === year &&
-          Number.isFinite(item.annualIncomeMin) &&
-          Number.isFinite(item.annualIncomeExpected) &&
-          Number.isFinite(item.annualIncomeMax) &&
-          item.annualIncomeMin > 0 &&
-          item.annualIncomeMin <= item.annualIncomeExpected &&
-          item.annualIncomeExpected <= item.annualIncomeMax,
-      ).length === 1,
+const validSalaries = (items: SalaryResult[]) =>
+  items.length === 3 && [0, 3, 5].every((year) =>
+    items.filter((item) => item.annual === year &&
+      Number.isFinite(item.annualIncomeMin) &&
+      Number.isFinite(item.annualIncomeExpected) &&
+      Number.isFinite(item.annualIncomeMax) &&
+      item.annualIncomeMin > 0 &&
+      item.annualIncomeMin <= item.annualIncomeExpected &&
+      item.annualIncomeExpected <= item.annualIncomeMax).length === 1,
   );
 
-const chartData = salaryResults.map((item) => ({
-  year: item.annual,
-  salary: item.annualIncomeExpected,
-  lower: item.annualIncomeMin,
-  upper: item.annualIncomeMax,
-}));
+function UnavailableResult({ message }: { message: string }) {
+  return (
+    <section className="flex min-h-[320px] flex-col items-center justify-center text-center">
+      <h2 className="text-[18px] font-semibold text-text-primary">진단 결과를 표시할 수 없습니다</h2>
+      <p className="mt-3 text-[12px] leading-5 text-text-secondary">{message}</p>
+      <Link to="/spec" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90">
+        스펙 등록으로 돌아가기
+      </Link>
+    </section>
+  );
+}
 
 export default function DiagnosisResultPage() {
-  if (!hasValidSalaryResults) {
+  const [params] = useSearchParams();
+  const user = useCurrentUser();
+  const runId = Number(params.get("runId"));
+  const email = user?.email;
+  const requestKey = `${email ?? ""}:${runId}`;
+  const [request, setRequest] = useState<{
+    key: string;
+    result: DiagnosisViewState | null;
+    error: boolean;
+  } | null>(null);
+  const [retry, setRetry] = useState(0);
+  const validRequest = !!email && Number.isSafeInteger(runId) && runId > 0;
+
+  useEffect(() => {
+    if (!email || !Number.isSafeInteger(runId) || runId <= 0) return;
+    let active = true;
+    getDiagnosisView(email, runId)
+      .then((result) => {
+        if (active) setRequest({ key: requestKey, result, error: false });
+      })
+      .catch(() => {
+        if (active) setRequest({ key: requestKey, result: null, error: true });
+      });
+    return () => { active = false; };
+  }, [email, runId, requestKey, retry]);
+
+  if (validRequest && request?.key !== requestKey) {
+    return (
+      <p role="status" className="py-12 text-center text-[12px] text-text-secondary">
+        진단 결과를 불러오는 중입니다.
+      </p>
+    );
+  }
+
+  if (validRequest && request?.error) {
     return (
       <section className="flex min-h-[320px] flex-col items-center justify-center text-center">
-        <h2 className="text-[18px] font-semibold text-text-primary">
-          진단 결과를 표시할 수 없습니다
-        </h2>
-        <p className="mt-3 text-[12px] leading-5 text-text-secondary">
-          예상 연봉 정보가 없거나 올바르지 않습니다.
-          <br />
-          스펙을 확인한 뒤 다시 진단해 주세요.
-        </p>
-        <Link
-          to="/spec"
-          className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          스펙 등록으로 돌아가기
-        </Link>
+        <h2 className="text-[18px] font-semibold text-text-primary">결과 조회에 실패했습니다</h2>
+        <p className="mt-3 text-[12px] text-text-secondary">잠시 후 다시 시도해 주세요.</p>
+        <button type="button" onClick={() => {
+          setRequest(null);
+          setRetry((value) => value + 1);
+        }} className="mt-6 rounded-lg bg-text-primary px-5 py-3 text-[12px] font-semibold text-white">
+          다시 시도
+        </button>
       </section>
     );
   }
 
-  const startingSalary =
-    salaryResults.find((item) => item.annual === 0)?.annualIncomeExpected ?? 0;
+  const result = validRequest ? request?.result : null;
+  if (result?.status === "pending") {
+    return <Navigate to={`/diagnosis/loading?runId=${runId}`} replace />;
+  }
+  if (result?.status === "failed") {
+    return <UnavailableResult message="연봉 분석이 실패했습니다. 스펙을 확인하고 다시 진단해 주세요." />;
+  }
+  if (result?.status === "canceled") {
+    return <UnavailableResult message="취소된 분석입니다. 스펙 등록 화면에서 다시 진단해 주세요." />;
+  }
 
-  const { comparisonGroup, appliedSpecs, recommendation, salaryNotice } =
-    diagnosisDetail;
+  const data = result?.status === "completed" ? result.data : null;
+  if (!data || !validSalaries(data.salaryResults)) {
+    return <UnavailableResult message="완료된 분석 결과가 없거나 연봉 정보가 올바르지 않습니다." />;
+  }
 
-  const education = appliedSpecs.academicAbilities
-    .map(
-      (item) =>
-        `${item.type === "UNIVERSITY" ? "학사" : item.type} · ${item.majorName ?? "전공 미입력"}`,
-    )
-    .join(", ");
-
-  const grades = appliedSpecs.academicAbilities
-    .filter(
-      (item) =>
-        item.universityGrade !== null &&
-        item.universityStandardGrade !== null,
-    )
-    .map(
-      (item) =>
-        `${item.universityGrade} / ${item.universityStandardGrade}`,
-    )
-    .join(", ");
-
-  const certificates = appliedSpecs.certificates
-    .map((item) => item.certificateName)
-    .join(", ");
-
-  const languages = appliedSpecs.languageExamScores
-    .map(
-      (item) =>
-        `${item.languageExamName} ${item.scoreNumeric ?? item.scoreGrade ?? ""}`.trim(),
-    )
-    .join(", ");
-
-  const specRows = [
-    { label: "학력", value: education },
-    { label: "학점", value: grades },
-    { label: "자격", value: certificates },
-    { label: "어학", value: languages },
-  ];
+  const { salaryResults, comparisonGroup, specRows, recommendation, salaryNotice } = data;
+  const startingSalary = salaryResults.find((item) => item.annual === 0)!.annualIncomeExpected;
+  const chartData = salaryResults.map((item) => ({
+    year: item.annual, salary: item.annualIncomeExpected,
+    lower: item.annualIncomeMin, upper: item.annualIncomeMax,
+  }));
 
   return (
     <section className="w-full">
-      <section
-        aria-label="예상 연봉 요약"
-        className="mt-5 grid grid-cols-1 gap-y-6 border-b border-border pb-4 sm:grid-cols-3 sm:gap-y-0"
-      >
+      <section aria-label="예상 연봉 요약"
+        className="mt-5 grid grid-cols-1 gap-y-6 border-b border-border pb-4 sm:grid-cols-3 sm:gap-y-0">
         {salaryResults.map((item, index) => (
-          <div
-            key={item.annual}
-            className={
-              index === 0
-                ? "sm:pr-7"
-                : index === 1
-                  ? "sm:border-l sm:border-border sm:px-7"
-                  : "sm:border-l sm:border-border sm:pl-7"
-            }
-          >
+          <div key={item.annual} className={index === 0 ? "sm:pr-7" :
+            index === 1 ? "sm:border-l sm:border-border sm:px-7" :
+              "sm:border-l sm:border-border sm:pl-7"}>
             <p className="text-[12px] font-medium text-text-secondary">
-              {item.annual === 0
-                ? "첫 취업 초봉 예상"
-                : `취업 ${item.annual}년 차 예상`}
+              {item.annual === 0 ? "첫 취업 초봉 예상" : `취업 ${item.annual}년 차 예상`}
             </p>
-            <p
-              className={`mt-2 text-[32px] font-bold leading-tight tracking-[-0.04em] ${
-                index === 0 ? "text-brand-strong" : "text-text-primary"
-              }`}
-            >
+            <p className={`mt-2 text-[32px] font-bold leading-tight tracking-[-0.04em] ${
+              index === 0 ? "text-brand-strong" : "text-text-primary"}`}>
               {formatSalary(item.annualIncomeExpected)}
-              <span className="ml-0.5 text-[12px] font-semibold tracking-normal">
-                만원
-              </span>
+              <span className="ml-0.5 text-[12px] font-semibold tracking-normal">만원</span>
             </p>
             <p className="mt-2 text-[11px] leading-5 text-text-muted">
               {item.annual === 0
@@ -205,48 +137,27 @@ export default function DiagnosisResultPage() {
 
       <div className="mt-5 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] lg:gap-8">
         <section aria-labelledby="salary-trend-title" className="min-w-0">
-          <h2
-            id="salary-trend-title"
-            className="text-[16px] font-semibold text-text-primary"
-          >
+          <h2 id="salary-trend-title" className="text-[16px] font-semibold text-text-primary">
             연차별 연봉 추이
           </h2>
-          <p className="mt-2 text-[11px] text-text-secondary">
-            현재 스펙 유지 시 예상되는 연봉 변화
-          </p>
-          <div className="mt-4">
-            <SalaryChart data={chartData} />
-          </div>
-          <p className="mt-1 text-[10px] leading-relaxed text-text-muted">
-            {salaryNotice}
-          </p>
+          <p className="mt-2 text-[11px] text-text-secondary">현재 스펙 유지 시 예상되는 연봉 변화</p>
+          <div className="mt-4"><SalaryChart data={chartData} /></div>
+          <p className="mt-1 text-[10px] leading-relaxed text-text-muted">{salaryNotice}</p>
           <p className="mt-1 text-[10px] text-text-muted">
-            현재 화면은 API 응답 예시 데이터를 사용합니다.
+            현재 연봉·비교 집단·보완점은 API 명세의 예시값입니다. 실제 개인별 분석 결과가 아닙니다.
           </p>
         </section>
 
-        <section
-          aria-labelledby="diagnosis-detail-title"
-          className="flex min-w-0 flex-col"
-        >
-          <h2
-            id="diagnosis-detail-title"
-            className="text-[16px] font-semibold text-text-primary"
-          >
+        <section aria-labelledby="diagnosis-detail-title" className="flex min-w-0 flex-col">
+          <h2 id="diagnosis-detail-title" className="text-[16px] font-semibold text-text-primary">
             분석 기준 및 스펙 점검
           </h2>
-
           <div className="mt-6">
-            <h3 className="text-[13px] font-semibold text-text-primary">
-              비교 기준 집단
-            </h3>
+            <h3 className="text-[13px] font-semibold text-text-primary">비교 기준 집단</h3>
             <p className="mt-2 text-[12px] font-medium text-text-secondary">
-              {comparisonGroup.jobSubCategoryName} ·{" "}
-              {comparisonGroup.sampleCount.toLocaleString("ko-KR")}명
+              {comparisonGroup.jobSubCategoryName} · {comparisonGroup.sampleCount.toLocaleString("ko-KR")}명
             </p>
-            <p className="mt-1 text-[11px] leading-5 text-text-muted">
-              {comparisonGroup.description}
-            </p>
+            <p className="mt-1 text-[11px] leading-5 text-text-muted">{comparisonGroup.description}</p>
             <p className="mt-1 text-[10px] text-text-muted">
               관측 연도: {comparisonGroup.observationYears.join(", ")}
             </p>
@@ -255,32 +166,16 @@ export default function DiagnosisResultPage() {
           <details className="group mt-5 border-y border-border py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-text-primary">
-                  진단에 반영된 내 스펙
-                </span>
-                <span className="text-[11px] font-medium text-brand-strong group-open:hidden">
-                  펼치기
-                </span>
-                <span className="hidden text-[11px] font-medium text-brand-strong group-open:inline">
-                  접기
-                </span>
+                <span className="text-[13px] font-semibold text-text-primary">진단에 반영된 내 스펙</span>
+                <span className="text-[11px] font-medium text-brand-strong group-open:hidden">펼치기</span>
+                <span className="hidden text-[11px] font-medium text-brand-strong group-open:inline">접기</span>
               </span>
-              <img
-                src={chevronDown}
-                alt=""
-                className="h-4 w-4 shrink-0 transition-transform duration-200 group-open:rotate-180"
-              />
+              <img src={chevronDown} alt="" className="h-4 w-4 shrink-0 transition-transform duration-200 group-open:rotate-180" />
             </summary>
-
             <dl className="mt-6 space-y-5">
               {specRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-3"
-                >
-                  <dt className="text-[12px] text-text-muted">
-                    {row.label}
-                  </dt>
+                <div key={row.label} className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-3">
+                  <dt className="text-[12px] text-text-muted">{row.label}</dt>
                   <dd className="min-w-0 text-right text-[12px] font-semibold leading-5 text-text-primary">
                     {row.value || "없음"}
                   </dd>
@@ -288,31 +183,15 @@ export default function DiagnosisResultPage() {
               ))}
             </dl>
           </details>
-
           <div className="mt-5">
-            <h3 className="text-[13px] font-semibold text-text-primary">
-              연봉 성장을 위해 보완하면 좋은 점
-            </h3>
-            <p className="mt-2 text-[11px] leading-5 text-text-secondary">
-              {recommendation}
-            </p>
+            <h3 className="text-[13px] font-semibold text-text-primary">연봉 성장을 위해 보완하면 좋은 점</h3>
+            <p className="mt-2 text-[11px] leading-5 text-text-secondary">{recommendation}</p>
           </div>
-
           <div className="mt-8 flex flex-col items-end gap-10 lg:mt-auto lg:pt-8">
-            <Link
-              to="/salary"
-              className="inline-flex items-center gap-4 text-[12px] font-semibold text-brand-strong transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-strong"
-            >
-              조건을 바꿔서 비교해보기
-              <span aria-hidden="true" className="text-[17px]">
-                →
-              </span>
+            <Link to="/salary" className="inline-flex items-center gap-4 text-[12px] font-semibold text-brand-strong transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-strong">
+              조건을 바꿔서 비교해보기 <span aria-hidden="true" className="text-[17px]">→</span>
             </Link>
-
-            <Link
-              to="/spec"
-              className="inline-flex h-11 min-w-[142px] items-center justify-center rounded-lg bg-text-primary px-6 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-text-primary"
-            >
+            <Link to="/spec?edit=1" className="inline-flex h-11 min-w-[142px] items-center justify-center rounded-lg bg-text-primary px-6 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-text-primary">
               다시 진단하기
             </Link>
           </div>
