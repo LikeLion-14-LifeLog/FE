@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getSpecFormOptions,
+  getSavedSpecProfileMock,
   saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
-import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
-import type { Education } from "@/types/spec/education";
-import type { Certificate, LanguageScore } from "@/types/spec/qualification";
-import type { Experience } from "@/types/spec/experience";
+import { getActiveMockDiagnosis, startMockDiagnosis } from "@/mocks/diagnosis";
+import { useCurrentUser } from "@/store/authStore";
+import type { SpecFormOptions } from "@/types/spec/profile";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
 import QualificationSection from "./components/QualificationSection";
@@ -21,22 +22,37 @@ import {
   isValidExperience,
 } from "./utils/specValidation";
 
-const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
+const upsert = <T extends { localId: number }>(
+  items: T[],
+  value: T,
+): T[] =>
   items.some((item) => item.localId === value.localId)
-    ? items.map((item) => item.localId === value.localId ? value : item)
+    ? items.map((item) =>
+        item.localId === value.localId ? value : item,
+      )
     : [...items, value];
 
-export default function SpecPage() {
-  const [basicInfo, setBasicInfo] = useState<BasicInfo>({
+const emptyProfile = (): SpecProfileDraft => ({
+  basicInfo: {
     birthYear: "",
     residenceRegion: "",
     jobId: null,
     jobName: "",
-  });
-  const [educations, setEducations] = useState<Education[]>([]);
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [languageScores, setLanguageScores] = useState<LanguageScore[]>([]);
-  const [experiences, setExperiences] = useState<Experience[]>([]);
+  },
+  educations: [],
+  certificates: [],
+  languageScores: [],
+  experiences: [],
+});
+
+function SpecFormPage({ email }: { email: string | undefined }) {
+  const navigate = useNavigate();
+
+  const [profile, setProfile] = useState<SpecProfileDraft>(() =>
+    email
+      ? getSavedSpecProfileMock(email) ?? emptyProfile()
+      : emptyProfile(),
+  );
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,6 +74,14 @@ export default function SpecPage() {
     };
   }, []);
 
+  const {
+    basicInfo,
+    educations,
+    certificates,
+    languageScores,
+    experiences,
+  } = profile;
+
   const validBasic =
     options !== null &&
     isValidBasicInfo(basicInfo, options.residentialAreas);
@@ -73,27 +97,62 @@ export default function SpecPage() {
     experiences.every(isValidExperience);
 
   const canDiagnose = validBasic && validEducation && validOptional;
-  const clearNotice = () => setNotice("");
+
+  const update = (changes: Partial<SpecProfileDraft>) => {
+    setProfile((prev) => ({ ...prev, ...changes }));
+    setNotice("");
+  };
 
   const handleSave = async () => {
     if (saving) return;
 
-    const profile: SpecProfileDraft = {
-      basicInfo,
-      educations,
-      certificates,
-      languageScores,
-      experiences,
-    };
+    if (!email) {
+      navigate("/error/login-required");
+      return;
+    }
+
+    if (getActiveMockDiagnosis(email)) {
+      setNotice("분석 중에는 스펙을 수정할 수 없습니다.");
+      return;
+    }
 
     setSaving(true);
-    clearNotice();
+    setNotice("");
 
     try {
-      await saveSpecProfileMock(profile);
-      setNotice("Mock 임시 저장 완료 · 새로고침하면 데이터가 사라집니다.");
+      await saveSpecProfileMock(profile, email);
+      setNotice("Mock 임시 저장 완료");
     } catch {
       setNotice("저장에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiagnose = async () => {
+    if (!canDiagnose || saving) return;
+
+    if (!email) {
+      navigate("/error/login-required");
+      return;
+    }
+
+    const active = getActiveMockDiagnosis(email);
+
+    if (active) {
+      navigate(`/diagnosis/loading?runId=${active.runId}`);
+      return;
+    }
+
+    setSaving(true);
+    setNotice("");
+
+    try {
+      await saveSpecProfileMock(profile, email);
+      const run = startMockDiagnosis(profile, email);
+      navigate(`/diagnosis/loading?runId=${run.runId}`);
+    } catch {
+      setNotice("분석을 시작하지 못했습니다. 다시 시도해 주세요.");
     } finally {
       setSaving(false);
     }
@@ -116,70 +175,76 @@ export default function SpecPage() {
           <BasicInfoSection
             value={basicInfo}
             residentialAreas={options.residentialAreas}
-            onChange={(value) => {
-              setBasicInfo(value);
-              clearNotice();
-            }}
+            onChange={(value) => update({ basicInfo: value })}
           />
 
           <EducationSection
             educations={educations}
             options={options}
-            onSave={(value) => {
-              setEducations((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onDelete={(id) => {
-              setEducations((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
+            onSave={(value) =>
+              update({ educations: upsert(educations, value) })
+            }
+            onDelete={(id) =>
+              update({
+                educations: educations.filter(
+                  (item) => item.localId !== id,
+                ),
+              })
+            }
           />
 
           <QualificationSection
             certificates={certificates}
             languageScores={languageScores}
-            onSaveCertificate={(value) => {
-              setCertificates((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onSaveLanguage={(value) => {
-              setLanguageScores((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onDeleteCertificate={(id) => {
-              setCertificates((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
-            onDeleteLanguage={(id) => {
-              setLanguageScores((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
+            onSaveCertificate={(value) =>
+              update({
+                certificates: upsert(certificates, value),
+              })
+            }
+            onSaveLanguage={(value) =>
+              update({
+                languageScores: upsert(languageScores, value),
+              })
+            }
+            onDeleteCertificate={(id) =>
+              update({
+                certificates: certificates.filter(
+                  (item) => item.localId !== id,
+                ),
+              })
+            }
+            onDeleteLanguage={(id) =>
+              update({
+                languageScores: languageScores.filter(
+                  (item) => item.localId !== id,
+                ),
+              })
+            }
           />
         </div>
 
         <ExperienceSection
           experiences={experiences}
-          onSave={(value) => {
-            setExperiences((prev) => upsert(prev, value));
-            clearNotice();
-          }}
-          onDelete={(id) => {
-            setExperiences((prev) =>
-              prev.filter((item) => item.localId !== id),
-            );
-            clearNotice();
-          }}
+          onSave={(value) =>
+            update({
+              experiences: upsert(experiences, value),
+            })
+          }
+          onDelete={(id) =>
+            update({
+              experiences: experiences.filter(
+                (item) => item.localId !== id,
+              ),
+            })
+          }
         />
       </div>
 
       {notice && (
-        <p role="status" className="mt-5 text-[12px] text-text-secondary">
+        <p
+          role="status"
+          className="mt-5 text-[12px] text-text-secondary"
+        >
           {notice}
         </p>
       )}
@@ -188,12 +253,15 @@ export default function SpecPage() {
         saving={saving}
         canDiagnose={canDiagnose}
         onSave={handleSave}
-        onDiagnose={() => {
-          if (canDiagnose && !saving) {
-            setNotice("진단 기능은 API 연결 후 이용할 수 있습니다.");
-          }
-        }}
+        onDiagnose={handleDiagnose}
       />
     </div>
   );
+}
+
+export default function SpecPage() {
+  const user = useCurrentUser();
+  const email = user?.email;
+
+  return <SpecFormPage key={email ?? "guest"} email={email} />;
 }
