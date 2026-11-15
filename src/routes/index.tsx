@@ -4,13 +4,22 @@ import LoginPage from "@/pages/Login/LoginPage";
 import SignupPage from "@/pages/Login/SignupPage";
 import PasswordResetPage from "@/pages/Login/PasswordResetPage";
 import WelcomePage from "@/pages/Login/WelcomePage";
-import MainPage from "@/pages/Main/components/MainPage";
+import SpecPage from "@/pages/Spec/SpecPage";
 import CareerPage from "@/pages/Career/CareerPage";
+import CareerDetailPage from "@/pages/Career/CareerDetailPage";
 import NotFoundPage from "@/pages/NotFound/NotFoundPage";
 import SalaryPage from "@/pages/Salary/SalaryPage";
 import JobChancePage from "@/pages/JobChance/JobChancePage";
+import JobDetailPage from "@/pages/JobChance/JobDetailPage";
 import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
 import LandingPage from "@/pages/Landing/LandingPage";
+import {
+  LoginRequiredPage,
+  MaintenancePage,
+  NetworkErrorPage,
+  ServerErrorPage,
+  SpecUnavailablePage,
+} from "@/pages/Exception/ExceptionPages";
 
 const router = createBrowserRouter([
   {
@@ -27,6 +36,11 @@ const router = createBrowserRouter([
         },
       },
       {
+        // 상세 화면은 자체 제목을 쓰므로 handle 없음
+        path: "/career/:routeId",
+        element: <CareerDetailPage />,
+      },
+      {
         path: "/salary",
         element: <SalaryPage />,
         handle: {
@@ -38,12 +52,12 @@ const router = createBrowserRouter([
       },
       {
         path: "/spec",
-        element: <MainPage />,
+        element: <SpecPage />,
         handle: {
-          eyebrow: "my carrer profile",
+          eyebrow: "MY CAREER PROFILE",
           title: "내 커리어 프로필",
           description:
-            "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 바로 반영되며, 이 기기에 자동 저장됩니다.",
+            "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 활용되며, 이 페이지에서 언제든 수정할 수 있습니다.",
         },
       },
       {
@@ -56,6 +70,11 @@ const router = createBrowserRouter([
             "등록된 프로필 조건 및 설정한 준비 목표(인턴 6개월)를 바탕으로 추천 맞춤 공고입니다.",
         },
       },
+      {
+        // 상세 화면은 자체 제목을 쓰므로 handle 없음
+        path: "/jobs/:jobId",
+        element: <JobDetailPage />,
+      },
     ],
   },
   { path: "/login", element: <LoginPage /> },
@@ -63,6 +82,12 @@ const router = createBrowserRouter([
   { path: "/signup", element: <SignupPage /> },
   { path: "/password-reset", element: <PasswordResetPage /> },
   { path: "/welcome", element: <WelcomePage /> },
+  // 예외 페이지
+  { path: "/error/500", element: <ServerErrorPage /> },
+  { path: "/error/network", element: <NetworkErrorPage /> },
+  { path: "/error/login-required", element: <LoginRequiredPage /> },
+  { path: "/error/maintenance", element: <MaintenancePage /> },
+  { path: "/error/spec-unavailable", element: <SpecUnavailablePage /> },
   { path: "*", element: <NotFoundPage /> },
   { path: "/", element: <LandingPage /> },
 ]);

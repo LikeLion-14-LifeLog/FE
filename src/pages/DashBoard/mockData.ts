@@ -4,7 +4,7 @@
  */
 import type { DashboardData } from "@/types/dashboard";
 
-/** 진단 전 화면 확인: diagnosis 를 null 로 변경 */
+/** 진단 결과는 진단을 마친 사용자에게만 표시된다 (DashBoardPage 참고) */
 export const MOCK_DASHBOARD: DashboardData = {
   major: "AI응용학과",
   diagnosis: {
@@ -19,7 +19,7 @@ export const MOCK_DASHBOARD: DashboardData = {
   },
   recommendedJobs: [
     {
-      id: 1,
+      id: 7,
       title: "핀테크 플랫폼 백엔드 개발자 (신입)",
       company: "㈜토스페이먼츠",
       location: "서울 강남구",
@@ -29,7 +29,7 @@ export const MOCK_DASHBOARD: DashboardData = {
       skills: ["Java", "Spring Boot"],
     },
     {
-      id: 2,
+      id: 12,
       title: "이커머스 결제·정산 API 개발자",
       company: "㈜무아한정패션",
       location: "서울 송파구",
@@ -39,7 +39,7 @@ export const MOCK_DASHBOARD: DashboardData = {
       skills: ["MySQL", "Redis"],
     },
     {
-      id: 3,
+      id: 10,
       title: "클라우드 인프라 및 API 서버 엔지니어",
       company: "㈜딩근마켓",
       location: "서울 서초구",
