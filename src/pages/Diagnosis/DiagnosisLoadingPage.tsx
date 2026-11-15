@@ -7,7 +7,9 @@ import {
   clearMockDiagnosisSession,
   getMockDiagnosisSession,
   getMockDiagnosisStep,
+  markDiagnosisCompleted,
 } from "@/mocks/diagnosis";
+import { useCurrentUser } from "@/store/authStore";
 import DiagnosisProgress from "./components/DiagnosisProgress";
 
 function getInitialSession() {
@@ -20,6 +22,7 @@ function getInitialSession() {
 
 export default function DiagnosisLoadingPage() {
   const navigate = useNavigate();
+  const user = useCurrentUser();
   const [session, setSession] = useState(getInitialSession);
   const [now, setNow] = useState(Date.now);
   const [cancelled, setCancelled] = useState(false);
@@ -53,6 +56,11 @@ export default function DiagnosisLoadingPage() {
   const elapsed = session ? Math.max(0, now - session.startedAt) : 0;
   const activeStep = session ? getMockDiagnosisStep(elapsed) : 0;
   const completed = activeStep === 3;
+
+  // 분석이 끝나면 완료 기록을 남겨 대시보드에서 결과 화면을 보여 준다
+  useEffect(() => {
+    if (completed && user) markDiagnosisCompleted(user.email);
+  }, [completed, user]);
 
   useEffect(() => {
     if (!session || completed) return;

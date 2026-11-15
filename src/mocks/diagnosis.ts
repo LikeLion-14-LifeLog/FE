@@ -61,3 +61,28 @@ export function getMockDiagnosisStep(elapsedMs: number): 0 | 1 | 2 | 3 {
   if (elapsedMs >= 6_000) return 1;
   return 0;
 }
+
+/*
+ * 진단 완료 여부 — API 연동 전 임시.
+ * 진행 세션(sessionStorage)은 30분 뒤 사라지므로, 완료 사실은 사용자별로 localStorage 에 따로 남긴다.
+ * TODO: API 연동 시 서버의 진단 결과 유무로 교체
+ */
+const completedKey = (email: string) =>
+  `lifelog:diagnosis:completed:${email.trim().toLowerCase()}`;
+
+export function markDiagnosisCompleted(email: string): void {
+  try {
+    localStorage.setItem(completedKey(email), "1");
+  } catch {
+    // 저장소 접근이 제한된 경우 무시합니다.
+  }
+}
+
+export function hasCompletedDiagnosis(email: string | undefined): boolean {
+  if (!email) return false;
+  try {
+    return localStorage.getItem(completedKey(email)) === "1";
+  } catch {
+    return false;
+  }
+}

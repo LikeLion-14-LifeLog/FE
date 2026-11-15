@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { useCurrentUser } from "@/store/authStore";
+import { hasCompletedDiagnosis } from "@/mocks/diagnosis";
 import type { JobPosting } from "@/types/dashboard";
 import DiagnosisSummary from "./components/DiagnosisSummary";
 import EmptyDiagnosis from "./components/EmptyDiagnosis";
@@ -12,7 +13,11 @@ import { MOCK_DASHBOARD } from "./mockData";
 const DashBoardPage = () => {
   const user = useCurrentUser();
   const navigate = useNavigate();
-  const { major, diagnosis, recommendedJobs, totalJobCount } = MOCK_DASHBOARD;
+  const { major, recommendedJobs, totalJobCount } = MOCK_DASHBOARD;
+  // 진단을 마치기 전에는 진단 전(빈) 화면을 보여 준다
+  const diagnosis = hasCompletedDiagnosis(user?.email)
+    ? MOCK_DASHBOARD.diagnosis
+    : null;
   const profile = { nickname: user?.nickname ?? "", major };
 
   const handleJobClick = (job: JobPosting) => {
