@@ -24,8 +24,9 @@ export const isValidBasicInfo = (value: BasicInfo, regions: RegionOption[]) =>
   !!value.jobName.trim();
 
 export const isValidEducation = (value: Education, options: SpecFormOptions) => {
+  const requiresGrade = value.type !== "HIGH_SCHOOL";
   const gradeProvided = !!value.universityGrade || !!value.universityStandardGrade;
-  const gradeValid = !gradeProvided ||
+  const gradeValid = (!requiresGrade && !gradeProvided) ||
     (options.gradeScales.includes(value.universityStandardGrade) &&
       isValidGrade(value.universityGrade, value.universityStandardGrade));
   return options.degreeTypes.some((v) => v.value === value.type) &&

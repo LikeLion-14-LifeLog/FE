@@ -22,23 +22,13 @@ import {
   isValidExperience,
 } from "./utils/specValidation";
 
-const upsert = <T extends { localId: number }>(
-  items: T[],
-  value: T,
-): T[] =>
+const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
   items.some((item) => item.localId === value.localId)
-    ? items.map((item) =>
-        item.localId === value.localId ? value : item,
-      )
+    ? items.map((item) => item.localId === value.localId ? value : item)
     : [...items, value];
 
 const emptyProfile = (): SpecProfileDraft => ({
-  basicInfo: {
-    birthYear: "",
-    residenceRegion: "",
-    jobId: null,
-    jobName: "",
-  },
+  basicInfo: { birthYear: "", residenceRegion: "", jobId: null, jobName: "" },
   educations: [],
   certificates: [],
   languageScores: [],
@@ -47,16 +37,16 @@ const emptyProfile = (): SpecProfileDraft => ({
 
 function SpecFormPage({ email }: { email: string | undefined }) {
   const navigate = useNavigate();
-
   const [profile, setProfile] = useState<SpecProfileDraft>(() =>
-    email
-      ? getSavedSpecProfileMock(email) ?? emptyProfile()
-      : emptyProfile(),
+    email ? getSavedSpecProfileMock(email) ?? emptyProfile() : emptyProfile(),
   );
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [editingEducation, setEditingEducation] = useState(false);
+  const [editingQualification, setEditingQualification] = useState(false);
+  const [editingExperience, setEditingExperience] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -74,29 +64,23 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     };
   }, []);
 
-  const {
-    basicInfo,
-    educations,
-    certificates,
-    languageScores,
-    experiences,
-  } = profile;
+  const { basicInfo, educations, certificates, languageScores, experiences } =
+    profile;
 
+  const hasPendingEdits =
+    editingEducation || editingQualification || editingExperience;
   const validBasic =
-    options !== null &&
-    isValidBasicInfo(basicInfo, options.residentialAreas);
-
+    options !== null && isValidBasicInfo(basicInfo, options.residentialAreas);
   const validEducation =
     options !== null &&
     educations.length > 0 &&
-    educations.every((item) => isValidEducation(item, options));
-
+    educations.every((value) => isValidEducation(value, options));
   const validOptional =
     certificates.every(isValidCertificate) &&
     languageScores.every(isValidLanguage) &&
     experiences.every(isValidExperience);
-
-  const canDiagnose = validBasic && validEducation && validOptional;
+  const canDiagnose =
+    validBasic && validEducation && validOptional && !hasPendingEdits;
 
   const update = (changes: Partial<SpecProfileDraft>) => {
     setProfile((prev) => ({ ...prev, ...changes }));
@@ -105,6 +89,11 @@ function SpecFormPage({ email }: { email: string | undefined }) {
 
   const handleSave = async () => {
     if (saving) return;
+
+    if (hasPendingEdits) {
+      setNotice("작성 중인 항목을 저장하거나 취소한 뒤 임시 저장해 주세요.");
+      return;
+    }
 
     if (!email) {
       navigate("/error/login-required");
@@ -158,18 +147,12 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     }
   };
 
-  if (optionsError) {
-    return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
-  }
-
-  if (!options) {
-    return <p role="status">선택 항목을 불러오는 중입니다.</p>;
-  }
+  if (optionsError) return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
+  if (!options) return <p role="status">선택 항목을 불러오는 중입니다.</p>;
 
   return (
     <div className="w-full pb-28">
       <div className="mb-6 border-t border-border-strong" />
-
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-8 lg:border-r lg:border-border lg:pr-8">
           <BasicInfoSection
@@ -177,78 +160,47 @@ function SpecFormPage({ email }: { email: string | undefined }) {
             residentialAreas={options.residentialAreas}
             onChange={(value) => update({ basicInfo: value })}
           />
-
           <EducationSection
             educations={educations}
             options={options}
-            onSave={(value) =>
-              update({ educations: upsert(educations, value) })
-            }
+            onEditingChange={setEditingEducation}
+            onSave={(value) => update({ educations: upsert(educations, value) })}
             onDelete={(id) =>
-              update({
-                educations: educations.filter(
-                  (item) => item.localId !== id,
-                ),
-              })
+              update({ educations: educations.filter((item) => item.localId !== id) })
             }
           />
-
           <QualificationSection
             certificates={certificates}
             languageScores={languageScores}
+            onEditingChange={setEditingQualification}
             onSaveCertificate={(value) =>
-              update({
-                certificates: upsert(certificates, value),
-              })
+              update({ certificates: upsert(certificates, value) })
             }
             onSaveLanguage={(value) =>
-              update({
-                languageScores: upsert(languageScores, value),
-              })
+              update({ languageScores: upsert(languageScores, value) })
             }
             onDeleteCertificate={(id) =>
-              update({
-                certificates: certificates.filter(
-                  (item) => item.localId !== id,
-                ),
-              })
+              update({ certificates: certificates.filter((item) => item.localId !== id) })
             }
             onDeleteLanguage={(id) =>
-              update({
-                languageScores: languageScores.filter(
-                  (item) => item.localId !== id,
-                ),
-              })
+              update({ languageScores: languageScores.filter((item) => item.localId !== id) })
             }
           />
         </div>
-
         <ExperienceSection
           experiences={experiences}
-          onSave={(value) =>
-            update({
-              experiences: upsert(experiences, value),
-            })
-          }
+          onEditingChange={setEditingExperience}
+          onSave={(value) => update({ experiences: upsert(experiences, value) })}
           onDelete={(id) =>
-            update({
-              experiences: experiences.filter(
-                (item) => item.localId !== id,
-              ),
-            })
+            update({ experiences: experiences.filter((item) => item.localId !== id) })
           }
         />
       </div>
-
       {notice && (
-        <p
-          role="status"
-          className="mt-5 text-[12px] text-text-secondary"
-        >
+        <p role="status" className="mt-5 text-[12px] text-text-secondary">
           {notice}
         </p>
       )}
-
       <SpecFooter
         saving={saving}
         canDiagnose={canDiagnose}
@@ -260,8 +212,7 @@ function SpecFormPage({ email }: { email: string | undefined }) {
 }
 
 export default function SpecPage() {
-  const user = useCurrentUser();
-  const email = user?.email;
+  const email = useCurrentUser()?.email;
 
   return <SpecFormPage key={email ?? "guest"} email={email} />;
 }
