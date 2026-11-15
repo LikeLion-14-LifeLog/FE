@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import SalaryChart from "@/components/SalaryChart";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import { getDiagnosisView, type DiagnosisViewState } from "@/apis/diagnosis";
@@ -25,7 +25,7 @@ function UnavailableResult({ message }: { message: string }) {
     <section className="flex min-h-[320px] flex-col items-center justify-center text-center">
       <h2 className="text-[18px] font-semibold text-text-primary">진단 결과를 표시할 수 없습니다</h2>
       <p className="mt-3 text-[12px] leading-5 text-text-secondary">{message}</p>
-      <Link to="/spec?edit=1" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90">
+      <Link to="/spec" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90">
         스펙 등록으로 돌아가기
       </Link>
     </section>
@@ -84,7 +84,7 @@ export default function DiagnosisResultPage() {
 
   const result = validRequest ? request?.result : null;
   if (result?.status === "pending") {
-    return <UnavailableResult message="분석이 아직 진행 중입니다. 분석 진행 화면에서 확인해 주세요." />;
+    return <Navigate to={`/diagnosis/loading?runId=${runId}`} replace />;
   }
   if (result?.status === "failed") {
     return <UnavailableResult message="연봉 분석이 실패했습니다. 스펙을 확인하고 다시 진단해 주세요." />;

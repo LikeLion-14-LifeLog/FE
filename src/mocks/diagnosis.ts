@@ -38,7 +38,14 @@ function loadRuns(email: string): MockDiagnosisRun[] {
 }
 
 function saveRuns(email: string, runs: MockDiagnosisRun[]): void {
-  sessionStorage.setItem(key(email), JSON.stringify(runs.slice(-MAX_RUNS)));
+  const recent = runs.slice(-MAX_RUNS);
+  const latestCompleted = [...runs].reverse().find(
+    (run) => getMockDiagnosisStatus(run) === "COMPLETED",
+  );
+  const kept = latestCompleted && !recent.some((run) => run.runId === latestCompleted.runId)
+    ? [latestCompleted, ...recent]
+    : recent;
+  sessionStorage.setItem(key(email), JSON.stringify(kept));
 }
 
 export function getMockDiagnosisStatus(run: MockDiagnosisRun): DiagnosisStatus {
@@ -60,11 +67,10 @@ export function getActiveMockDiagnosis(email: string): MockDiagnosisRun | null {
     getMockDiagnosisStatus(run) === "IN_PROGRESS") ?? null;
 }
 
-/** 최근 완료된 분석 실행. /spec 재진입 시 결과 복원에 사용한다. */
 export function getLatestCompletedMockDiagnosis(email: string): MockDiagnosisRun | null {
-  return loadRuns(email)
-    .filter((run) => getMockDiagnosisStatus(run) === "COMPLETED")
-    .at(-1) ?? null;
+  return loadRuns(email).reverse().find(
+    (run) => getMockDiagnosisStatus(run) === "COMPLETED",
+  ) ?? null;
 }
 
 export function startMockDiagnosis(
@@ -147,9 +153,11 @@ export function getMockAnalysisResult(
 // 기존 대시보드 Mock 호환 API
 const completedKey = (email: string) =>
   `lifelog:diagnosis:completed:${email.trim().toLowerCase()}`;
+
 export function markDiagnosisCompleted(email: string): void {
   try { localStorage.setItem(completedKey(email), "1"); } catch { /* optional */ }
 }
+
 export function hasCompletedDiagnosis(email: string | undefined): boolean {
   if (!email) return false;
   if (loadRuns(email).some((run) => getMockDiagnosisStatus(run) === "COMPLETED")) return true;

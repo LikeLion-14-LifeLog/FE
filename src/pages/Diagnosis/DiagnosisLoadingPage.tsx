@@ -17,6 +17,7 @@ export default function DiagnosisLoadingPage() {
   const runId = Number(searchParams.get("runId"));
   const [now, setNow] = useState(Date.now);
   const [cancelled, setCancelled] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const run = email && Number.isSafeInteger(runId) && runId > 0
     ? getMockDiagnosisRun(email, runId) : null;
   const status = run ? getMockDiagnosisStatus(run) : null;
@@ -43,9 +44,16 @@ export default function DiagnosisLoadingPage() {
 
   const handleCancel = () => {
     if (!email || !run) return;
-    if (cancelMockDiagnosis(email, run.runId)) {
-      setCancelled(true);
-      setNow(Date.now());
+    setCancelError("");
+    try {
+      if (cancelMockDiagnosis(email, run.runId)) {
+        setCancelled(true);
+        setNow(Date.now());
+      } else {
+        setCancelError("취소할 수 없는 분석 상태입니다. 상태를 확인해 주세요.");
+      }
+    } catch {
+      setCancelError("분석 취소를 저장하지 못했습니다. 다시 시도해 주세요.");
     }
   };
 
@@ -74,6 +82,9 @@ export default function DiagnosisLoadingPage() {
         <div className="mt-7 w-full sm:mt-8">
           <DiagnosisProgress activeStep={activeStep} cancelled={isCancelled || !run || status === "FAILED"} />
         </div>
+        {cancelError && (
+          <p role="alert" className="mt-4 text-[12px] text-red-500">{cancelError}</p>
+        )}
         <div className="mt-6 flex h-10 items-center justify-center">
           {isCancelled || !run || status === "FAILED" ? (
             <button type="button" onClick={() => navigate("/spec?edit=1")}
