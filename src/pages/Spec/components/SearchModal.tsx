@@ -154,7 +154,7 @@ export default function SearchModal({
         <div role="group" aria-label="검색 카테고리" className="flex shrink-0 gap-5 overflow-x-auto border-b border-border">
           {config.tabs.map((tab) => {
             const active = activeTab === tab.value;
-            const disabled = kind === "job" && tab.value !== "all";
+            const disabled = (kind === "job" || kind === "certificate") && tab.value !== "all";
             return (
               <button key={tab.value} type="button" aria-pressed={active} disabled={disabled}
                 onClick={() => {
