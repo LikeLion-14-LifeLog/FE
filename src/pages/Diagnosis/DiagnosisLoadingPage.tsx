@@ -100,25 +100,24 @@ export default function DiagnosisLoadingPage() {
         : "청년패널 데이터와 대조하여 시장 기준선을 산출합니다.";
 
   return (
-    <section className="flex min-h-[calc(100dvh-220px)] w-full items-center justify-center bg-bg-page px-5">
-      <div className="flex w-full max-w-[780px] flex-col items-center text-center">
+    <section className="flex min-h-[calc(100dvh/var(--page-zoom)-160px)] w-full items-center justify-center bg-bg-page px-5 py-10">
+      <div className="flex w-full max-w-[960px] flex-col items-center text-center">
         <img
           src={diagnosisIllustration}
           alt=""
-          className="h-auto w-[290px] max-w-full sm:w-[330px]"
+          className="h-auto w-[340px] max-w-full sm:w-[390px]"
         />
 
-        <h1 className="mt-8 text-[18px] font-bold leading-relaxed tracking-[-0.04em] text-text-primary sm:mt-4 sm:text-[22px]">
+        <h1 className="mt-8 text-[20px] font-bold leading-relaxed tracking-[-0.04em] text-text-primary sm:mt-4 sm:text-[26px]">
           {title}
         </h1>
 
         <p
           aria-live="polite"
-          className="mt-2 text-[13px] leading-3 text-text-secondary"
+          className="mt-2 text-[14px] leading-6 text-text-secondary"
         >
           {description}
         </p>
-
         <div className="mt-7 w-full sm:mt-8">
           <DiagnosisProgress
             activeStep={activeStep}
