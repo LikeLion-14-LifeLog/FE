@@ -11,10 +11,9 @@ import {
   MESSAGES,
   isValidEmail,
   isValidPassword,
-  type WelcomeState,
+  type LoginState,
 } from "./validation";
 import { isRegistered, saveAccount } from "./mockAccounts";
-import { login } from "@/store/authStore";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -57,14 +56,9 @@ const SignupPage = () => {
       setSaveError(MESSAGES.signupSaveFailed);
       return;
     }
-    const state: WelcomeState = {
-      nickname: nickname.trim(),
-      email: email.trim(),
-    };
-    login(state);
-    // 로그인이 필요한 화면에서 넘어왔다면 그 화면으로 바로 이동
-    if (redirect) navigate(redirect, { replace: true });
-    else navigate("/welcome", { state });
+    // 가입 후에는 로그인 화면으로 보내 직접 로그인하게 한다 (이메일은 미리 채움)
+    const state: LoginState = { email: email.trim(), fromSignup: true };
+    navigate(withRedirect("/login", redirect), { replace: true, state });
   };
 
   return (
@@ -175,7 +169,10 @@ const SignupPage = () => {
           <span className="text-[#64748b]">
             이미 LifeLog 계정이 있으신가요?
           </span>
-          <Link to={withRedirect("/login", redirect)} className="font-extrabold text-[#0d9488] underline">
+          <Link
+            to={withRedirect("/login", redirect)}
+            className="font-extrabold text-[#0d9488] underline"
+          >
             로그인
           </Link>
         </p>

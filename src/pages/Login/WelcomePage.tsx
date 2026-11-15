@@ -5,11 +5,15 @@ import Header from "@/components/Header";
 import PrimaryButton from "./components/PrimaryButton";
 import type { WelcomeState } from "./validation";
 import { useCurrentUser } from "@/store/authStore";
+import { getRedirect } from "@/utils/redirect";
 
 /** 로그인 성공 후 시작 페이지 — Figma 3:713 */
 const WelcomePage = () => {
   const navigate = useNavigate();
-  const state = useLocation().state as WelcomeState | null;
+  const location = useLocation();
+  const state = location.state as WelcomeState | null;
+  // 로그인 전에 가려던 화면이 있으면 그곳으로, 없으면 스펙 진단으로
+  const redirect = getRedirect(location.search);
   const user = useCurrentUser();
   const nickname = user?.nickname || state?.nickname || "회원";
   const email = user?.email ?? state?.email;
@@ -26,7 +30,10 @@ const WelcomePage = () => {
           오늘의 스펙부터 함께 진단해 볼까요?
         </p>
         <div className="h-[18px]" aria-hidden />
-        <PrimaryButton className="mb-5" onClick={() => navigate("/spec")}>
+        <PrimaryButton
+          className="mb-5"
+          onClick={() => navigate(redirect ?? "/spec")}
+        >
           스펙 진단 바로 시작하기&nbsp;&nbsp;→
         </PrimaryButton>
       </AuthCapsule>
