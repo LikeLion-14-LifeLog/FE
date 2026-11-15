@@ -82,7 +82,7 @@ export const MOCK_CAREER_MAP: CareerMapData = {
       targetSalary: 4850,
       rows: [
         { label: "첫 직장 시작 초봉", value: "3,450만 원" },
-        { label: "평균 이직 소요 기간", value: "약 3.2년" },
+        { label: "평균 이직 소요 기간", value: "약 2.8년" },
         {
           label: "솔루션 출발자 이직 성공률",
           value: "62% 이동 달성",
