@@ -10,6 +10,8 @@
 
 html {
   background-color: #fff;
+  /* 아래 zoom 배율 — 100vh 처럼 뷰포트 기준 높이를 보정할 때 나눠 쓴다 */
+  --page-zoom: 1;
 }
 
 /*
@@ -20,6 +22,7 @@ html {
 @media (min-width: 1024px) and (max-width: 1535.98px) {
   html {
     zoom: 0.8;
+    --page-zoom: 0.8;
   }
 }
 
