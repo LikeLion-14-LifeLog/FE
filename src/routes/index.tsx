@@ -36,9 +36,8 @@ const router = createBrowserRouter([
       {
         path: "/salary", element: <SalaryPage />,
         handle: {
-          eyebrow: "SALARY DIAGNOSIS REPORT",
-          title: "내 조건 기반 예상 연봉 진단 결과",
-          description: "서울 학사 · 소프트웨어학 전공 · SQL 개발자(SQLD) · TOEIC 865 기준의 대표 취업자 비교 결과입니다.",
+          eyebrow: "SALARY SIMULATOR", title: "조건을 바꾸면, 연봉은 얼마나 달라질까요?",
+          description: "궁금한 조건을 켜고 끄며 예상 변화와 준비 비용을 함께 살펴보세요.",
         },
       },
       {
