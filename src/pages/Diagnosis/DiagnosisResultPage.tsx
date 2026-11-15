@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import SalaryChart from "@/components/SalaryChart";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import type { SalaryResult } from "@/types/diagnosis";
@@ -68,6 +69,22 @@ const formatSalary = (won: number) =>
     maximumFractionDigits: 1,
   });
 
+const hasValidSalaryResults =
+  salaryResults.length === 3 &&
+  [0, 3, 5].every(
+    (year) =>
+      salaryResults.filter(
+        (item) =>
+          item.annual === year &&
+          Number.isFinite(item.annualIncomeMin) &&
+          Number.isFinite(item.annualIncomeExpected) &&
+          Number.isFinite(item.annualIncomeMax) &&
+          item.annualIncomeMin > 0 &&
+          item.annualIncomeMin <= item.annualIncomeExpected &&
+          item.annualIncomeExpected <= item.annualIncomeMax,
+      ).length === 1,
+  );
+
 const chartData = salaryResults.map((item) => ({
   year: item.annual,
   salary: item.annualIncomeExpected,
@@ -76,7 +93,30 @@ const chartData = salaryResults.map((item) => ({
 }));
 
 export default function DiagnosisResultPage() {
-  const startingSalary = salaryResults[0].annualIncomeExpected;
+  if (!hasValidSalaryResults) {
+    return (
+      <section className="flex min-h-[320px] flex-col items-center justify-center text-center">
+        <h2 className="text-[18px] font-semibold text-text-primary">
+          진단 결과를 표시할 수 없습니다
+        </h2>
+        <p className="mt-3 text-[12px] leading-5 text-text-secondary">
+          예상 연봉 정보가 없거나 올바르지 않습니다.
+          <br />
+          스펙을 확인한 뒤 다시 진단해 주세요.
+        </p>
+        <Link
+          to="/spec"
+          className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-text-primary px-5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          스펙 등록으로 돌아가기
+        </Link>
+      </section>
+    );
+  }
+
+  const startingSalary =
+    salaryResults.find((item) => item.annual === 0)?.annualIncomeExpected ?? 0;
+
   const { comparisonGroup, appliedSpecs, recommendation, salaryNotice } =
     diagnosisDetail;
 
@@ -187,7 +227,7 @@ export default function DiagnosisResultPage() {
 
         <section
           aria-labelledby="diagnosis-detail-title"
-          className="min-w-0"
+          className="flex min-w-0 flex-col"
         >
           <h2
             id="diagnosis-detail-title"
@@ -256,6 +296,25 @@ export default function DiagnosisResultPage() {
             <p className="mt-2 text-[11px] leading-5 text-text-secondary">
               {recommendation}
             </p>
+          </div>
+
+          <div className="mt-8 flex flex-col items-end gap-10 lg:mt-auto lg:pt-8">
+            <Link
+              to="/salary"
+              className="inline-flex items-center gap-4 text-[12px] font-semibold text-brand-strong transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-strong"
+            >
+              조건을 바꿔서 비교해보기
+              <span aria-hidden="true" className="text-[17px]">
+                →
+              </span>
+            </Link>
+
+            <Link
+              to="/spec"
+              className="inline-flex h-11 min-w-[142px] items-center justify-center rounded-lg bg-text-primary px-6 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-text-primary"
+            >
+              다시 진단하기
+            </Link>
           </div>
         </section>
       </div>
