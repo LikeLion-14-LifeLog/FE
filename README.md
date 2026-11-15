@@ -19,9 +19,9 @@ src
 │   ├── Login              // 로그인 페이지
 │   │   ├── components     // 로그인 페이지에서만 쓰는 컴포넌트
 │   │   └── LoginPage.tsx
-│   ├── Main               // 메인 페이지
+│   ├── Landing               // 랜딩 페이지
 │   │   ├── components
-│   │   └── MainPage.tsx
+│   │   └── LandingPage.tsx
 │   └── NotFound           // 404 페이지
 │       └── NotFoundPage.tsx
 ├── store                  // zustand 전역 상태 관리
@@ -44,7 +44,7 @@ src
 
 | 경로 | 페이지 | 레이아웃 |
 |---|---|---|
-| `/` | `MainPage` | `MainLayout` 적용 |
+| `/` | `LandingPage` | `MainLayout` 적용 |
 | `/login` | `LoginPage` | 없음 |
 | `*` | `NotFoundPage` | 없음 |
 
