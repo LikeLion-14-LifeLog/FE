@@ -11,31 +11,50 @@ type Props = {
   options: SpecFormOptions;
   onSave: (value: Education) => void;
   onDelete: (localId: number) => void;
+  onEditingChange: (editing: boolean) => void;
 };
+
 const createEducation = (localId: number): Education => ({
   localId, academicAbilityId: null, type: "", status: "", location: "",
   universityGrade: "", universityStandardGrade: "", graduatedYearMonth: "",
   majorAffiliation: "", majorId: null, majorName: "",
 });
 
-export default function EducationSection({ educations, options, onSave, onDelete }: Props) {
+export default function EducationSection({
+  educations,
+  options,
+  onSave,
+  onDelete,
+  onEditingChange,
+}: Props) {
   const nextId = useRef(Math.max(1, ...educations.map((item) => item.localId)) + 1);
   const [draft, setDraft] = useState<Education | null>(() =>
     educations.length ? null : createEducation(1));
   const canSave = draft !== null && isValidEducation(draft, options);
 
+  const edit = (value: Education) => {
+    setDraft(value);
+    onEditingChange(true);
+  };
+
   const add = () => {
     nextId.current = Math.max(nextId.current, ...educations.map((item) => item.localId + 1));
-    setDraft(createEducation(nextId.current++));
+    edit(createEducation(nextId.current++));
   };
+
   const save = () => {
     if (!draft || !canSave) return;
     onSave(draft);
     setDraft(null);
+    onEditingChange(false);
   };
+
   const remove = (id: number) => {
     onDelete(id);
-    if (educations.length === 1) add();
+    if (educations.length === 1) {
+      nextId.current = Math.max(nextId.current, id + 1);
+      setDraft(createEducation(nextId.current++));
+    }
   };
 
   return (
@@ -63,7 +82,7 @@ export default function EducationSection({ educations, options, onSave, onDelete
                 <p className="text-[16px] font-bold leading-6 text-text-primary">{location} 소재 {school}</p>
                 <span className="text-[11px] font-semibold text-brand-strong">{degree}</span>
               </div>
-              <SavedItemActions disabled={draft !== null} onEdit={() => setDraft({ ...item })}
+              <SavedItemActions disabled={draft !== null} onEdit={() => edit({ ...item })}
                 onDelete={() => remove(item.localId)} />
             </div>
             {(item.majorName || majorField) && (
@@ -88,9 +107,15 @@ export default function EducationSection({ educations, options, onSave, onDelete
       })}
       {draft && (
         <EducationForm value={draft} options={options} canSave={canSave}
-          onChange={(changes) => setDraft((prev) => prev ? { ...prev, ...changes } : null)}
+          onChange={(changes) => {
+            setDraft((prev) => prev ? { ...prev, ...changes } : null);
+            onEditingChange(true);
+          }}
           onSave={save}
-          onCancel={() => setDraft(educations.length ? null : createEducation(draft.localId))} />
+          onCancel={() => {
+            setDraft(educations.length ? null : createEducation(draft.localId));
+            onEditingChange(false);
+          }} />
       )}
     </section>
   );
