@@ -12,6 +12,17 @@ html {
   background-color: #fff;
 }
 
+/*
+ * 1920 기준 시안을 노트북 폭(1024~1535px)에서 한 단계 축소한다.
+ * 연속적인 innerWidth 기반 배율과 달리 고정 구간이라,
+ * 각 구간 안에서는 브라우저 확대/축소가 그대로 적용된다.
+ */
+@media (min-width: 1024px) and (max-width: 1535.98px) {
+  html {
+    zoom: 0.8;
+  }
+}
+
 @theme {
   --font-sans: "Pretendard", sans-serif;
 
