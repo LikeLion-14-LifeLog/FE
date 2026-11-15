@@ -155,23 +155,29 @@ const MOCK_JOB_DETAILS: Record<string, JobDetail> = {
   },
 };
 
-export const getMockJobDetail = (job: JobPosting): JobDetail =>
-  MOCK_JOB_DETAILS[job.id] ?? {
-    companyDescription: `${job.industry} 기업`,
-    position: job.title.replace(/\s*\(.*\)\s*$/, ""),
-    salaryNote: "세전 기본급 기준",
-    address: job.location,
-    employmentType: job.title.includes("신입") ? "신입 정규직" : "정규직",
-    duties: [
-      `서비스 개발 ${job.industry} 서비스 ${job.jobRole} 기능 설계 및 개발`,
-      `운영·개선 운영 중인 서비스 장애 대응 및 성능 개선`,
-    ].join("\n"),
-    requirements: [
-      `학력 요건 ${job.education}`,
-      `기술 역량 ${job.jobRole} 직무 관련 기초 개발 역량 보유자`,
-    ].join("\n"),
-    benefits: [
-      `유연근무 시차출퇴근제 운영`,
-      `성장지원 직무 교육비 및 도서 구입비 지원`,
-    ].join("\n"),
-  };
+const SEOUL_JOB_PORTAL_URL = "https://job.seoul.go.kr";
+
+const buildFallbackDetail = (job: JobPosting): JobDetail => ({
+  companyDescription: `${job.industry} 기업`,
+  position: job.title.replace(/\s*\(.*\)\s*$/, ""),
+  salaryNote: "세전 기본급 기준",
+  address: job.location,
+  employmentType: job.title.includes("신입") ? "신입 정규직" : "정규직",
+  duties: [
+    `서비스 개발 ${job.industry} 서비스 ${job.jobRole} 기능 설계 및 개발`,
+    `운영·개선 운영 중인 서비스 장애 대응 및 성능 개선`,
+  ].join("\n"),
+  requirements: [
+    `학력 요건 ${job.education}`,
+    `기술 역량 ${job.jobRole} 직무 관련 기초 개발 역량 보유자`,
+  ].join("\n"),
+  benefits: [
+    `유연근무 시차출퇴근제 운영`,
+    `성장지원 직무 교육비 및 도서 구입비 지원`,
+  ].join("\n"),
+});
+
+export const getMockJobDetail = (job: JobPosting): JobDetail => {
+  const detail = MOCK_JOB_DETAILS[job.id] ?? buildFallbackDetail(job);
+  return { ...detail, applyUrl: detail.applyUrl ?? SEOUL_JOB_PORTAL_URL };
+};
