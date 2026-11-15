@@ -16,11 +16,8 @@ import JobDetailPage from "@/pages/JobChance/JobDetailPage";
 import DashBoardPage from "@/pages/DashBoard/DashBoardPage";
 import LandingPage from "@/pages/Landing/LandingPage";
 import {
-  LoginRequiredPage,
-  MaintenancePage,
-  NetworkErrorPage,
-  ServerErrorPage,
-  SpecUnavailablePage,
+  LoginRequiredPage, MaintenancePage, NetworkErrorPage,
+  ServerErrorPage, SpecUnavailablePage,
 } from "@/pages/Exception/ExceptionPages";
 
 const router = createBrowserRouter([
@@ -28,68 +25,47 @@ const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       {
-        path: "/career",
-        element: <CareerPage />,
+        path: "/career", element: <CareerPage />,
         handle: {
           eyebrow: "Career Path",
           title: "동일 전공·스펙 선배들은 어디로 취업하고 이직했을까요?",
-          description:
-            "공공 청년패널 실데이터 기반 동일 전공·조건 취업자 이동 경로 추적 분석",
+          description: "공공 청년패널 실데이터 기반 동일 전공·조건 취업자 이동 경로 추적 분석",
         },
       },
+      { path: "/career/:routeId", element: <CareerDetailPage /> },
       {
-        // 상세 화면은 자체 제목을 쓰므로 handle 없음
-        path: "/career/:routeId",
-        element: <CareerDetailPage />,
-      },
-      {
-        path: "/salary",
-        element: <SalaryPage />,
+        path: "/salary", element: <SalaryPage />,
         handle: {
           eyebrow: "SALARY DIAGNOSIS REPORT",
           title: "내 조건 기반 예상 연봉 진단 결과",
-          description:
-            "서울 학사 · 소프트웨어학 전공 · SQL 개발자(SQLD) · TOEIC 865 기준의 대표 취업자 비교 결과입니다.",
+          description: "서울 학사 · 소프트웨어학 전공 · SQL 개발자(SQLD) · TOEIC 865 기준의 대표 취업자 비교 결과입니다.",
         },
       },
       {
-        path: "/spec",
-        element: <SpecEntryPage />,
+        path: "/spec", element: <SpecEntryPage />,
         handle: {
-          eyebrow: "MY CAREER PROFILE",
-          title: "내 커리어 프로필",
-          description:
-            "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 활용되며, 이 페이지에서 언제든 수정할 수 있습니다.",
+          eyebrow: "MY CAREER PROFILE", title: "내 커리어 프로필",
+          description: "입력한 스펙은 연봉 진단과 맞춤 커리어 추천에 활용되며, 이 페이지에서 언제든 수정할 수 있습니다.",
         },
       },
+      { path: "/diagnosis/loading", element: <DiagnosisLoadingPage /> },
       {
-        path: "/diagnosis/loading",
-        element: <DiagnosisLoadingPage />,
-      },
-      {
-        path: "/diagnosis/result",
-        element: <DiagnosisResultPage />,
+        path: "/diagnosis/result", element: <DiagnosisResultPage />,
         handle: {
           eyebrow: "SALARY DIAGNOSIS REPORT",
           title: "내 조건 기반 예상 연봉 진단 결과",
-          description:
-            "등록한 스펙을 바탕으로 분석 결과를 확인합니다.",
+          description: "등록한 스펙을 바탕으로 분석 결과를 확인합니다.",
         },
       },
       {
-        path: "/jobs",
-        element: <JobChancePage />,
+        path: "/jobs", element: <JobChancePage />,
         handle: {
-          eyebrow: "JOB OPENING",
-          title: "채용 기회",
-          description:
-            "등록된 프로필 조건 및 설정한 준비 목표(인턴 6개월)를 바탕으로 추천 맞춤 공고입니다.",
+          eyebrow: "JOB OPENING", title: "채용 기회",
+          description: "등록된 프로필 조건 및 설정한 준비 목표(인턴 6개월)를 바탕으로 추천 맞춤 공고입니다.",
         },
       },
-      {
-        // 상세 화면은 자체 제목을 쓰므로 handle 없음
-        path: "/jobs/:jobId",
-        element: <JobDetailPage />,
+      { // 상세 화면은 자체 제목을 쓰므로 handle 없음 
+        path: "/jobs/:jobId", element: <JobDetailPage />
       },
     ],
   },
