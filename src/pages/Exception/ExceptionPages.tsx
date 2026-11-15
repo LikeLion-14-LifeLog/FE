@@ -39,7 +39,9 @@ export const NotFoundPage = () => {
           <ExceptionPrimaryButton onClick={() => navigate("/")}>
             홈으로 가기
           </ExceptionPrimaryButton>
-          <ExceptionGhostButton onClick={goBack}>이전 페이지로</ExceptionGhostButton>
+          <ExceptionGhostButton onClick={goBack}>
+            이전 페이지로
+          </ExceptionGhostButton>
         </>
       }
     />
@@ -59,7 +61,9 @@ export const ServerErrorPage = () => {
       }
       actions={
         <>
-          <ExceptionPrimaryButton onClick={goBack}>다시 시도하기</ExceptionPrimaryButton>
+          <ExceptionPrimaryButton onClick={goBack}>
+            다시 시도하기
+          </ExceptionPrimaryButton>
           <ExceptionGhostButton onClick={() => navigate("/")}>
             홈으로 가기
           </ExceptionGhostButton>
@@ -80,7 +84,9 @@ export const NetworkErrorPage = () => {
         "Wi-Fi나 모바일 데이터 연결을 확인한 뒤\n다시 시도해 주세요."
       }
       actions={
-        <ExceptionPrimaryButton onClick={goBack}>다시 시도하기</ExceptionPrimaryButton>
+        <ExceptionPrimaryButton onClick={goBack}>
+          다시 시도하기
+        </ExceptionPrimaryButton>
       }
     />
   );
@@ -110,11 +116,8 @@ export const LoginRequiredPage = () => {
   );
 };
 
-/* 서비스 점검 중 */
 type MaintenancePageProps = {
-  /** 점검 일정 문구 */
   schedule?: string;
-  /** 공지사항 링크 */
   noticeUrl?: string;
 };
 
@@ -156,7 +159,7 @@ export const MaintenancePage = ({
   );
 };
 
-/* 분석 불가 스펙 — 모델이 입력한 스펙으로 결과를 도출하지 못했을 때 */
+/*  모델이 입력한 스펙으로 결과를 도출하지 못했을 때 */
 export const SpecUnavailablePage = () => {
   const navigate = useNavigate();
   return (
