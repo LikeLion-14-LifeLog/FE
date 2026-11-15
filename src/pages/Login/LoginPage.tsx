@@ -12,6 +12,7 @@ import {
   MESSAGES,
   isValidEmail,
   isValidPassword,
+  type LoginState,
   type WelcomeState,
 } from "./validation";
 import { findNickname, isRegistered } from "./mockAccounts";
@@ -19,8 +20,11 @@ import { login } from "@/store/authStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const redirect = getRedirect(useLocation().search);
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  const redirect = getRedirect(location.search);
+  // 회원가입 직후라면 가입한 이메일을 미리 채워 둔다
+  const fromSignup = location.state as LoginState | null;
+  const [email, setEmail] = useState(fromSignup?.email ?? "");
   const [password, setPassword] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -47,9 +51,8 @@ const LoginPage = () => {
     // TODO: 로그인 API 연동 (비밀번호 확인, keepLoggedIn 포함)
     const state: WelcomeState = { nickname, email: email.trim() };
     login(state, keepLoggedIn);
-    // 로그인이 필요한 화면에서 넘어왔다면 그 화면으로 바로 이동
-    if (redirect) navigate(redirect, { replace: true });
-    else navigate("/welcome", { state });
+    // 환영 페이지를 거친 뒤 원래 가려던 화면(redirect)으로 이어진다
+    navigate(withRedirect("/welcome", redirect), { replace: true, state });
   };
 
   return (
@@ -58,6 +61,11 @@ const LoginPage = () => {
         <h1 className="mb-6 h-8 text-center text-[24px] leading-[31.2px] font-extrabold tracking-[-0.5px] text-[#0f172a]">
           LifeLog 로그인
         </h1>
+        {fromSignup?.fromSignup && (
+          <p className="-mt-3 mb-4 text-center text-[13px] font-medium text-[#0d9488]">
+            회원가입이 완료됐어요. 로그인해 주세요.
+          </p>
+        )}
 
         <div className="flex flex-col gap-4 pb-[26px]">
           <AuthInput
