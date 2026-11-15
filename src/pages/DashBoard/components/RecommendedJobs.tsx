@@ -12,7 +12,7 @@ type RecommendedJobsProps = {
 const formatSalaryRange = (min: number, max: number) =>
   `${min.toLocaleString()} ~ ${max.toLocaleString()}만 원`;
 
-/** 추천 공고 섹션 */
+/** 진단 후 – 추천 공고 섹션 */
 const RecommendedJobs = ({
   jobs,
   totalCount,
