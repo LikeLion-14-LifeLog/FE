@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { useCurrentUser } from "@/store/authStore";
+import AccountMenu from "@/components/AccountMenu";
 
 const menus = [
   { name: "대시보드", path: "/dashboard" },
@@ -14,24 +15,24 @@ export default function Header() {
 
   return (
     <header className="w-full border-b border-border bg-white">
-      <div className="mx-auto flex h-15 w-full max-w-7xl items-center gap-9 px-6">
+      <div className="flex h-16 w-full items-center gap-12 px-6 lg:px-12">
         <Link
           to="/"
           aria-label="LifeLog 홈"
-          className="shrink-0 text-xl font-extrabold tracking-[-1px] text-text-primary"
+          className="shrink-0 text-[22px] leading-[33px] font-extrabold tracking-[-0.5px] text-text-primary"
         >
-          LifeLog<span className="text-brand">.</span>
+          LifeLog<span className="ml-1 text-[24px] text-brand">.</span>
         </Link>
 
-        <nav aria-label="주 메뉴" className="flex h-full flex-1 items-center gap-7">
+        <nav aria-label="주 메뉴" className="flex h-full flex-1 items-center gap-8">
           {menus.map(({ name, path }) => (
             <NavLink
               key={path}
               to={path}
               className={({ isActive }) =>
-                `relative flex h-full shrink-0 items-center text-[13px] font-medium transition-colors ${
+                `relative flex h-full shrink-0 items-center text-[14.5px] font-medium transition-colors ${
                   isActive
-                    ? "font-semibold text-brand after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-t-[2px] after:bg-brand"
+                    ? "font-bold text-brand after:absolute after:bottom-0 after:left-0 after:h-[3px] after:w-full after:rounded-t-[3px] after:bg-brand"
                     : "text-text-secondary hover:text-brand"
                 }`
               }
@@ -42,19 +43,9 @@ export default function Header() {
         </nav>
 
         {user ? (
-          <div className="flex h-8 shrink-0 items-center gap-2">
-            <img
-              src="/usericon.svg"
-              alt=""
-              className="size-8 shrink-0"
-              draggable={false}
-            />
-            <span className="text-[14px] leading-[21px] font-bold whitespace-nowrap text-[#1e293b]">
-              {user.nickname}
-            </span>
-          </div>
+          <AccountMenu user={user} />
         ) : (
-          <div className="flex shrink-0 items-center gap-5 text-[13px] font-medium">
+          <div className="flex shrink-0 items-center gap-5 text-[14px] font-medium">
             <Link
               to="/login"
               className="text-text-primary transition-colors hover:text-brand"
