@@ -1,12 +1,10 @@
 import { mockSpecFormOptions } from "@/mocks/spec";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
-import type {
-  Certificate,
-  LanguageScore,
-} from "@/types/spec/qualification";
+import type { Certificate, LanguageScore } from "@/types/spec/qualification";
 import type { Experience } from "@/types/spec/experience";
 
+/** UI Draft: Mock 검색명/로컬 ID가 포함되므로 서버 PUT DTO와 다름. */
 export type SpecProfileDraft = {
   basicInfo: BasicInfo;
   educations: Education[];
@@ -15,23 +13,36 @@ export type SpecProfileDraft = {
   experiences: Experience[];
 };
 
-let mockSavedProfile: SpecProfileDraft | null = null;
+const key = (email: string) =>
+  `lifelog:spec:mock:${email.trim().toLowerCase()}`;
 
 export async function getSpecFormOptions(): Promise<SpecFormOptions> {
-  // TODO: 거주지역은 GET /api/residential-areas로 교체
-  // TODO: 나머지 선택지는 실제 조회 API 또는 전체 ENUM 확인 후 보완
   return structuredClone(mockSpecFormOptions);
 }
 
-export function saveSpecProfileMock(
+export async function saveSpecProfileMock(
   profile: SpecProfileDraft,
+  email: string,
 ): Promise<void> {
-  // TODO: PUT /api/spec-profiles/current/temporary로 교체
-  // 현재는 앱 실행 중 메모리에만 저장하며 새로고침 시 초기화됨
-  mockSavedProfile = structuredClone(profile);
-  return Promise.resolve();
+  // 실API의 JWT 회원 소유권을 Mock에서는 이메일별 저장소로 대체.
+  // 저장 실패를 성공으로 처리하지 않도록 예외 전파.
+  sessionStorage.setItem(key(email), JSON.stringify(profile));
 }
 
-export function getSavedSpecProfileMock(): SpecProfileDraft | null {
-  return mockSavedProfile ? structuredClone(mockSavedProfile) : null;
+export function getSavedSpecProfileMock(email: string): SpecProfileDraft | null {
+  try {
+    const raw = sessionStorage.getItem(key(email));
+    if (!raw) return null;
+    const data: unknown = JSON.parse(raw);
+    if (!data || typeof data !== "object") return null;
+    if (!("basicInfo" in data) || !data.basicInfo ||
+        typeof data.basicInfo !== "object") return null;
+    if (!("educations" in data) || !Array.isArray(data.educations) ||
+        !("certificates" in data) || !Array.isArray(data.certificates) ||
+        !("languageScores" in data) || !Array.isArray(data.languageScores) ||
+        !("experiences" in data) || !Array.isArray(data.experiences)) return null;
+    return data as SpecProfileDraft;
+  } catch {
+    return null;
+  }
 }
