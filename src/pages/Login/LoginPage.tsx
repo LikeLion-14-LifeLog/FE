@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getRedirect, withRedirect } from "@/utils/redirect";
 import AuthBackground from "./components/AuthBackground";
 import AuthCapsule from "./components/AuthCapsule";
 import AuthCheckbox from "./components/AuthCheckbox";
@@ -18,6 +19,7 @@ import { login } from "@/store/authStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const redirect = getRedirect(useLocation().search);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
@@ -45,7 +47,9 @@ const LoginPage = () => {
     // TODO: 로그인 API 연동 (비밀번호 확인, keepLoggedIn 포함)
     const state: WelcomeState = { nickname, email: email.trim() };
     login(state, keepLoggedIn);
-    navigate("/welcome", { state });
+    // 로그인이 필요한 화면에서 넘어왔다면 그 화면으로 바로 이동
+    if (redirect) navigate(redirect, { replace: true });
+    else navigate("/welcome", { state });
   };
 
   return (
@@ -105,7 +109,7 @@ const LoginPage = () => {
             아직 LifeLog 계정이 없으신가요?
           </span>
           <Link
-            to="/signup"
+            to={withRedirect("/signup", redirect)}
             className="font-extrabold text-[#0d9488] underline"
           >
             회원가입
