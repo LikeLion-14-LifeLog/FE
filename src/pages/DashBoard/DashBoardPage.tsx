@@ -1,5 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { useCurrentUser } from "@/store/authStore";
+import type { JobPosting } from "@/types/dashboard";
 import DiagnosisSummary from "./components/DiagnosisSummary";
 import EmptyDiagnosis from "./components/EmptyDiagnosis";
 import RecommendedJobs from "./components/RecommendedJobs";
@@ -9,8 +11,14 @@ import { MOCK_DASHBOARD } from "./mockData";
 
 const DashBoardPage = () => {
   const user = useCurrentUser();
+  const navigate = useNavigate();
   const { major, diagnosis, recommendedJobs, totalJobCount } = MOCK_DASHBOARD;
   const profile = { nickname: user?.nickname ?? "", major };
+
+  // TODO: 공고 상세 페이지가 생기면 해당 경로로 교체
+  const handleJobClick = (job: JobPosting) => {
+    navigate(`/jobs?jobId=${job.id}`);
+  };
 
   return (
     <div className="min-h-screen bg-bg-page font-sans text-text-primary">
@@ -22,6 +30,7 @@ const DashBoardPage = () => {
             <RecommendedJobs
               jobs={recommendedJobs}
               totalCount={totalJobCount}
+              onJobClick={handleJobClick}
             />
           </div>
         ) : (

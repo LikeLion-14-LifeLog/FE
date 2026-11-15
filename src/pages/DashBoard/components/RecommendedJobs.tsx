@@ -5,7 +5,6 @@ import TextLink from "./TextLink";
 type RecommendedJobsProps = {
   jobs: JobPosting[];
   totalCount: number;
-  /** "맞춤 공고 전체보기" 이동 경로 */
   allJobsPath?: string;
   onJobClick?: (job: JobPosting) => void;
 };
