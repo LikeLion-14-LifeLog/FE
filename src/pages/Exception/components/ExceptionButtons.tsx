@@ -3,7 +3,6 @@ import SecondaryButton from "@/pages/Login/components/SecondaryButton";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
-/* 주 액션 — 뉴모피즘 버튼 (높이 54) */
 export const ExceptionPrimaryButton = ({
   className = "",
   ...props
@@ -11,7 +10,6 @@ export const ExceptionPrimaryButton = ({
   <SecondaryButton className={`text-[16px] ${className}`} {...props} />
 );
 
-/* 보조 액션 — 반투명 글래스 버튼 (높이 46) */
 export const ExceptionGhostButton = ({
   className = "",
   type = "button",

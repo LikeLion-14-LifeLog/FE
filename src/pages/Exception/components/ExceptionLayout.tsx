@@ -3,17 +3,13 @@ import Header from "@/components/Header";
 import AuthBackground from "@/pages/Login/components/AuthBackground";
 
 type ExceptionLayoutProps = {
-  /** public/exception 의 글래스 배지 아이콘 경로 */
   icon: string;
   title: string;
-  /** 줄바꿈은 \n 으로 */
   description: string;
-  /** 설명 아래 보조 정보 (예: 점검 일정 칩) */
   extra?: ReactNode;
   actions: ReactNode;
 };
 
-/* 예외 페이지 공통 레이아웃 (404 · 500 · 네트워크 · 로그인 필요 · 점검 · 분석 불가) */
 const ExceptionLayout = ({
   icon,
   title,
@@ -22,14 +18,12 @@ const ExceptionLayout = ({
   actions,
 }: ExceptionLayoutProps) => {
   return (
-    // 배지 중심을 배경 원형 라인 중심에 맞추기 위해 상단 고정 (Figma: 배지 top 286.5)
     <AuthBackground
       header={<Header />}
       variant="exception"
       mainClassName="pt-[222px] pb-16"
     >
       <section className="flex w-full max-w-[520px] flex-col items-center text-center">
-        {/* 배지 SVG는 그림자 여백 포함 320px, 실제 원은 220px */}
         <img
           src={icon}
           alt=""
