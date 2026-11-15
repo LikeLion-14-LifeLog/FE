@@ -113,7 +113,7 @@ const CareerDetail = ({ routeId }: { routeId: string }) => {
 const CareerDetailPage = () => {
   const { routeId } = useParams<{ routeId: string }>();
 
-  if (!routeId || !(routeId in MOCK_CAREER_DETAILS)) {
+  if (!routeId || !Object.hasOwn(MOCK_CAREER_DETAILS, routeId)) {
     return <Navigate to="/career" replace />;
   }
 
