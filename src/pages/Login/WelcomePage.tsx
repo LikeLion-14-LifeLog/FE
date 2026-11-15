@@ -26,7 +26,7 @@ const WelcomePage = () => {
           오늘의 스펙부터 함께 진단해 볼까요?
         </p>
         <div className="h-[18px]" aria-hidden />
-        <PrimaryButton className="mb-5" onClick={() => navigate("/")}>
+        <PrimaryButton className="mb-5" onClick={() => navigate("/spec")}>
           스펙 진단 바로 시작하기&nbsp;&nbsp;→
         </PrimaryButton>
       </AuthCapsule>
