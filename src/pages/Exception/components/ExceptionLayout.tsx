@@ -7,7 +7,7 @@ type ExceptionLayoutProps = {
   title: string;
   description: string;
   extra?: ReactNode;
-  actions: ReactNode;
+  actions?: ReactNode;
 };
 
 const ExceptionLayout = ({
