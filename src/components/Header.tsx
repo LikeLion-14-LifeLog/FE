@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { useCurrentUser } from "@/store/authStore";
+import AccountMenu from "@/components/AccountMenu";
 
 const menus = [
   { name: "대시보드", path: "/dashboard" },
@@ -42,17 +43,7 @@ export default function Header() {
         </nav>
 
         {user ? (
-          <div className="flex h-8 shrink-0 items-center gap-2">
-            <img
-              src="/usericon.svg"
-              alt=""
-              className="size-8 shrink-0"
-              draggable={false}
-            />
-            <span className="text-[14px] leading-[21px] font-bold whitespace-nowrap text-[#1e293b]">
-              {user.nickname}
-            </span>
-          </div>
+          <AccountMenu user={user} />
         ) : (
           <div className="flex shrink-0 items-center gap-5 text-[14px] font-medium">
             <Link

@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { getRedirect, withRedirect } from "@/utils/redirect";
 import ExceptionLayout from "./components/ExceptionLayout";
 import {
   ExceptionGhostButton,
@@ -95,6 +96,8 @@ export const NetworkErrorPage = () => {
 /* 로그인 필요 */
 export const LoginRequiredPage = () => {
   const navigate = useNavigate();
+  // 로그인/회원가입 후 원래 가려던 화면으로 돌아가도록 redirect 를 그대로 넘긴다
+  const redirect = getRedirect(useLocation().search);
   return (
     <ExceptionLayout
       icon={ICON.login}
@@ -104,10 +107,14 @@ export const LoginRequiredPage = () => {
       }
       actions={
         <>
-          <ExceptionPrimaryButton onClick={() => navigate("/login")}>
+          <ExceptionPrimaryButton
+            onClick={() => navigate(withRedirect("/login", redirect))}
+          >
             로그인하기
           </ExceptionPrimaryButton>
-          <ExceptionGhostButton onClick={() => navigate("/signup")}>
+          <ExceptionGhostButton
+            onClick={() => navigate(withRedirect("/signup", redirect))}
+          >
             회원가입
           </ExceptionGhostButton>
         </>

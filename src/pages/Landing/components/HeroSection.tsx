@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import EmployeeCardVisual from "./EmployeeCardVisual";
 import SectionScrollLink from "./SectionScrollLink";
+import { useCurrentUser } from "@/store/authStore";
+import { withRedirect } from "@/utils/redirect";
 
 export default function HeroSection() {
+  const user = useCurrentUser();
+
   return (
     <section
       id="hero"
@@ -18,7 +22,9 @@ export default function HeroSection() {
         </h1>
 
         <Link
-          to="/spec"
+          to={
+            user ? "/spec" : withRedirect("/error/login-required", "/spec")
+          }
           className="group mt-7 inline-flex items-center gap-3 text-[12px] font-bold text-brand transition-colors duration-300 hover:text-brand-strong"
         >
           내 연봉 진단하기
