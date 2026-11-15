@@ -9,6 +9,7 @@ type Props = {
   experiences: Experience[];
   onSave: (value: Experience) => void;
   onDelete: (localId: number) => void;
+  onEditingChange: (editing: boolean) => void;
 };
 
 const createExperience = (localId: number): Experience => ({
@@ -29,6 +30,7 @@ export default function ExperienceSection({
   experiences,
   onSave,
   onDelete,
+  onEditingChange,
 }: Props) {
   const nextId = useRef(
     Math.max(0, ...experiences.map((item) => item.localId)) + 1,
@@ -44,18 +46,28 @@ export default function ExperienceSection({
   const activityNumber =
     activityIndex < 0 ? experiences.length + 1 : activityIndex + 1;
 
+  const edit = (value: Experience) => {
+    setDraft(value);
+    onEditingChange(true);
+  };
+
   const add = () => {
     nextId.current = Math.max(
       nextId.current,
       ...experiences.map((item) => item.localId + 1),
     );
-    setDraft(createExperience(nextId.current++));
+    edit(createExperience(nextId.current++));
+  };
+
+  const close = () => {
+    setDraft(null);
+    onEditingChange(false);
   };
 
   const save = () => {
     if (!draft || !canSave) return;
     onSave(draft);
-    setDraft(null);
+    close();
   };
 
   return (
@@ -102,7 +114,7 @@ export default function ExperienceSection({
 
               <SavedItemActions
                 disabled={draft !== null}
-                onEdit={() => setDraft({ ...item })}
+                onEdit={() => edit({ ...item })}
                 onDelete={() => onDelete(item.localId)}
               />
             </div>
@@ -130,7 +142,7 @@ export default function ExperienceSection({
             )
           }
           onSave={save}
-          onCancel={() => setDraft(null)}
+          onCancel={close}
         />
       )}
     </section>

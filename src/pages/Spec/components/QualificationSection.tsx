@@ -19,6 +19,7 @@ type Props = {
   onSaveLanguage: (value: LanguageScore) => void;
   onDeleteCertificate: (id: number) => void;
   onDeleteLanguage: (id: number) => void;
+  onEditingChange: (editing: boolean) => void;
 };
 
 type Kind = QualificationDraft["kind"];
@@ -37,6 +38,7 @@ export default function QualificationSection({
   onSaveLanguage,
   onDeleteCertificate,
   onDeleteLanguage,
+  onEditingChange,
 }: Props) {
   const nextId = useRef(
     Math.max(
@@ -91,6 +93,11 @@ export default function QualificationSection({
         };
   };
 
+  const edit = (value: QualificationDraft) => {
+    setDraft(value);
+    onEditingChange(true);
+  };
+
   const switchKind = (kind: Kind) => {
     if (!draft || isEditing || kind === draft.kind) return;
 
@@ -115,6 +122,12 @@ export default function QualificationSection({
     }
   };
 
+  const close = () => {
+    cached.current = {};
+    setDraft(null);
+    onEditingChange(false);
+  };
+
   const save = () => {
     if (!draft || !isValid(draft)) return;
 
@@ -124,13 +137,7 @@ export default function QualificationSection({
       onSaveLanguage(draft.value);
     }
 
-    cached.current = {};
-    setDraft(null);
-  };
-
-  const cancel = () => {
-    cached.current = {};
-    setDraft(null);
+    close();
   };
 
   return (
@@ -147,7 +154,7 @@ export default function QualificationSection({
           disabled={draft !== null}
           onClick={() => {
             cached.current = {};
-            setDraft(createDraft("certificate"));
+            edit(createDraft("certificate"));
           }}
           className="ml-auto cursor-pointer text-[11px] font-semibold text-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -175,7 +182,7 @@ export default function QualificationSection({
               <SavedItemActions
                 disabled={draft !== null}
                 onEdit={() =>
-                  setDraft({ kind: "certificate", value: { ...item } })
+                  edit({ kind: "certificate", value: { ...item } })
                 }
                 onDelete={() => onDeleteCertificate(item.localId)}
               />
@@ -210,7 +217,7 @@ export default function QualificationSection({
               <SavedItemActions
                 disabled={draft !== null}
                 onEdit={() =>
-                  setDraft({ kind: "language", value: { ...item } })
+                  edit({ kind: "language", value: { ...item } })
                 }
                 onDelete={() => onDeleteLanguage(item.localId)}
               />
@@ -231,7 +238,7 @@ export default function QualificationSection({
           onSwitchKind={switchKind}
           onChange={setDraft}
           onSave={save}
-          onCancel={cancel}
+          onCancel={close}
         />
       )}
     </section>

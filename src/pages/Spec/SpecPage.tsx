@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getSpecFormOptions,
+  getSavedSpecProfileMock,
   saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
-import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
-import type { Education } from "@/types/spec/education";
-import type { Certificate, LanguageScore } from "@/types/spec/qualification";
-import type { Experience } from "@/types/spec/experience";
+import { getActiveMockDiagnosis, startMockDiagnosis } from "@/mocks/diagnosis";
+import { useCurrentUser } from "@/store/authStore";
+import type { SpecFormOptions } from "@/types/spec/profile";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
 import QualificationSection from "./components/QualificationSection";
@@ -26,21 +27,26 @@ const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
     ? items.map((item) => item.localId === value.localId ? value : item)
     : [...items, value];
 
-export default function SpecPage() {
-  const [basicInfo, setBasicInfo] = useState<BasicInfo>({
-    birthYear: "",
-    residenceRegion: "",
-    jobId: null,
-    jobName: "",
-  });
-  const [educations, setEducations] = useState<Education[]>([]);
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [languageScores, setLanguageScores] = useState<LanguageScore[]>([]);
-  const [experiences, setExperiences] = useState<Experience[]>([]);
+const emptyProfile = (): SpecProfileDraft => ({
+  basicInfo: { birthYear: "", residenceRegion: "", jobId: null, jobName: "" },
+  educations: [],
+  certificates: [],
+  languageScores: [],
+  experiences: [],
+});
+
+function SpecFormPage({ email }: { email: string | undefined }) {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<SpecProfileDraft>(() =>
+    email ? getSavedSpecProfileMock(email) ?? emptyProfile() : emptyProfile(),
+  );
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [editingEducation, setEditingEducation] = useState(false);
+  const [editingQualification, setEditingQualification] = useState(false);
+  const [editingExperience, setEditingExperience] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -58,40 +64,53 @@ export default function SpecPage() {
     };
   }, []);
 
-  const validBasic =
-    options !== null &&
-    isValidBasicInfo(basicInfo, options.residentialAreas);
+  const { basicInfo, educations, certificates, languageScores, experiences } =
+    profile;
 
+  const hasPendingEdits =
+    editingEducation || editingQualification || editingExperience;
+  const validBasic =
+    options !== null && isValidBasicInfo(basicInfo, options.residentialAreas);
   const validEducation =
     options !== null &&
     educations.length > 0 &&
-    educations.every((item) => isValidEducation(item, options));
-
+    educations.every((value) => isValidEducation(value, options));
   const validOptional =
     certificates.every(isValidCertificate) &&
     languageScores.every(isValidLanguage) &&
     experiences.every(isValidExperience);
+  const canDiagnose =
+    validBasic && validEducation && validOptional && !hasPendingEdits;
 
-  const canDiagnose = validBasic && validEducation && validOptional;
-  const clearNotice = () => setNotice("");
+  const update = (changes: Partial<SpecProfileDraft>) => {
+    setProfile((prev) => ({ ...prev, ...changes }));
+    setNotice("");
+  };
 
   const handleSave = async () => {
     if (saving) return;
 
-    const profile: SpecProfileDraft = {
-      basicInfo,
-      educations,
-      certificates,
-      languageScores,
-      experiences,
-    };
+    if (hasPendingEdits) {
+      setNotice("작성 중인 항목을 저장하거나 취소한 뒤 임시 저장해 주세요.");
+      return;
+    }
+
+    if (!email) {
+      navigate("/error/login-required");
+      return;
+    }
+
+    if (getActiveMockDiagnosis(email)) {
+      setNotice("분석 중에는 스펙을 수정할 수 없습니다.");
+      return;
+    }
 
     setSaving(true);
-    clearNotice();
+    setNotice("");
 
     try {
-      await saveSpecProfileMock(profile);
-      setNotice("Mock 임시 저장 완료 · 새로고침하면 데이터가 사라집니다.");
+      await saveSpecProfileMock(profile, email);
+      setNotice("Mock 임시 저장 완료");
     } catch {
       setNotice("저장에 실패했습니다. 다시 시도해 주세요.");
     } finally {
@@ -99,101 +118,101 @@ export default function SpecPage() {
     }
   };
 
-  if (optionsError) {
-    return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
-  }
+  const handleDiagnose = async () => {
+    if (!canDiagnose || saving) return;
 
-  if (!options) {
-    return <p role="status">선택 항목을 불러오는 중입니다.</p>;
-  }
+    if (!email) {
+      navigate("/error/login-required");
+      return;
+    }
+
+    const active = getActiveMockDiagnosis(email);
+
+    if (active) {
+      navigate(`/diagnosis/loading?runId=${active.runId}`);
+      return;
+    }
+
+    setSaving(true);
+    setNotice("");
+
+    try {
+      await saveSpecProfileMock(profile, email);
+      const run = startMockDiagnosis(profile, email);
+      navigate(`/diagnosis/loading?runId=${run.runId}`);
+    } catch {
+      setNotice("분석을 시작하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (optionsError) return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
+  if (!options) return <p role="status">선택 항목을 불러오는 중입니다.</p>;
 
   return (
     <div className="w-full pb-28">
       <div className="mb-6 border-t border-border-strong" />
-
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-8 lg:border-r lg:border-border lg:pr-8">
           <BasicInfoSection
             value={basicInfo}
             residentialAreas={options.residentialAreas}
-            onChange={(value) => {
-              setBasicInfo(value);
-              clearNotice();
-            }}
+            onChange={(value) => update({ basicInfo: value })}
           />
-
           <EducationSection
             educations={educations}
             options={options}
-            onSave={(value) => {
-              setEducations((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onDelete={(id) => {
-              setEducations((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
+            onEditingChange={setEditingEducation}
+            onSave={(value) => update({ educations: upsert(educations, value) })}
+            onDelete={(id) =>
+              update({ educations: educations.filter((item) => item.localId !== id) })
+            }
           />
-
           <QualificationSection
             certificates={certificates}
             languageScores={languageScores}
-            onSaveCertificate={(value) => {
-              setCertificates((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onSaveLanguage={(value) => {
-              setLanguageScores((prev) => upsert(prev, value));
-              clearNotice();
-            }}
-            onDeleteCertificate={(id) => {
-              setCertificates((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
-            onDeleteLanguage={(id) => {
-              setLanguageScores((prev) =>
-                prev.filter((item) => item.localId !== id),
-              );
-              clearNotice();
-            }}
+            onEditingChange={setEditingQualification}
+            onSaveCertificate={(value) =>
+              update({ certificates: upsert(certificates, value) })
+            }
+            onSaveLanguage={(value) =>
+              update({ languageScores: upsert(languageScores, value) })
+            }
+            onDeleteCertificate={(id) =>
+              update({ certificates: certificates.filter((item) => item.localId !== id) })
+            }
+            onDeleteLanguage={(id) =>
+              update({ languageScores: languageScores.filter((item) => item.localId !== id) })
+            }
           />
         </div>
-
         <ExperienceSection
           experiences={experiences}
-          onSave={(value) => {
-            setExperiences((prev) => upsert(prev, value));
-            clearNotice();
-          }}
-          onDelete={(id) => {
-            setExperiences((prev) =>
-              prev.filter((item) => item.localId !== id),
-            );
-            clearNotice();
-          }}
+          onEditingChange={setEditingExperience}
+          onSave={(value) => update({ experiences: upsert(experiences, value) })}
+          onDelete={(id) =>
+            update({ experiences: experiences.filter((item) => item.localId !== id) })
+          }
         />
       </div>
-
       {notice && (
         <p role="status" className="mt-5 text-[12px] text-text-secondary">
           {notice}
         </p>
       )}
-
       <SpecFooter
         saving={saving}
         canDiagnose={canDiagnose}
         onSave={handleSave}
-        onDiagnose={() => {
-          if (canDiagnose && !saving) {
-            setNotice("진단 기능은 API 연결 후 이용할 수 있습니다.");
-          }
-        }}
+        onDiagnose={handleDiagnose}
       />
     </div>
   );
+}
+
+export default function SpecPage() {
+  const email = useCurrentUser()?.email;
+
+  return <SpecFormPage key={email ?? "guest"} email={email} />;
 }
