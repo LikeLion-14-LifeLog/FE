@@ -33,14 +33,7 @@ const router = createBrowserRouter([
         },
       },
       { path: "/career/:routeId", element: <CareerDetailPage /> },
-      {
-        path: "/salary", element: <SalaryPage />,
-        handle: {
-          eyebrow: "SALARY DIAGNOSIS REPORT",
-          title: "내 조건 기반 예상 연봉 진단 결과",
-          description: "서울 학사 · 소프트웨어학 전공 · SQL 개발자(SQLD) · TOEIC 865 기준의 대표 취업자 비교 결과입니다.",
-        },
-      },
+      { path: "/salary", element: <SalaryPage /> },
       {
         path: "/spec", element: <SpecEntryPage />,
         handle: {
