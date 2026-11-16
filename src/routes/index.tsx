@@ -33,13 +33,7 @@ const router = createBrowserRouter([
         },
       },
       { path: "/career/:routeId", element: <CareerDetailPage /> },
-      {
-        path: "/salary", element: <SalaryPage />,
-        handle: {
-          eyebrow: "SALARY SIMULATOR", title: "조건을 바꾸면, 연봉은 얼마나 달라질까요?",
-          description: "궁금한 조건을 켜고 끄며 예상 변화와 준비 비용을 함께 살펴보세요.",
-        },
-      },
+      { path: "/salary", element: <SalaryPage /> },
       {
         path: "/spec", element: <SpecEntryPage />,
         handle: {
