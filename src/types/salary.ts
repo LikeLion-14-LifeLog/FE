@@ -4,11 +4,11 @@ export type SalaryConditionField =
   | "LANGUAGE"
   | "ACADEMIC";
 
-type SalaryConditionChanges = {
+export type SalaryChanges = {
   experience?: {
     type: "INTERNSHIP" | "TRAINING";
     durationMonths: number;
-  };
+  } | null;
   addCertificateIds?: number[];
   languageScore?: {
     languageExamId: number;
@@ -27,7 +27,7 @@ export type SalaryConditionOption = {
   summary?: string;
   description?: string;
   keywords?: string[];
-  changes: SalaryConditionChanges;
+  changes: SalaryChanges;
 };
 
 export type SalaryCondition = {
@@ -35,4 +35,22 @@ export type SalaryCondition = {
   label: string;
   defaultSummary: string;
   options: SalaryConditionOption[];
+};
+
+export type SalaryComparisonOption = {
+  optionKey: string;
+  title: string;
+  incomeExpected: number;
+  delta: number;
+  prepPeriod: string;
+  estimatedCost: number;
+  costNote: string;
+  fitDescription: string;
+  changes: SalaryChanges;
+};
+
+export type SalaryComparison = {
+  options: SalaryComparisonOption[];
+  basis: string;
+  notice: string;
 };

@@ -234,7 +234,7 @@ export default function SalaryConditionDrawer({
             onClick={() => onApply(draft)}
             className="min-h-[46px] w-full cursor-pointer rounded-[9px] bg-text-primary px-4 text-[13px] font-bold text-white hover:bg-text-primary/90"
           >
-            {isCertificate ? "자격증 추가" : "조건 적용"}
+            조건 적용
           </button>
         </footer>
       </div>
