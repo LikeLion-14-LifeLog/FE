@@ -10,6 +10,7 @@
 
 html {
   background-color: #fff;
+  scrollbar-gutter: stable;
   /* 아래 zoom 배율 — 100vh 처럼 뷰포트 기준 높이를 보정할 때 나눠 쓴다 */
   --page-zoom: 1;
 }
