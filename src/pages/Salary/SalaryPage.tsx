@@ -7,13 +7,14 @@ import {
 } from "react-router-dom";
 import {
   buildSalaryChanges,
-  getSalarySimulationMock,
+  buildSalarySimulationRequest,
   sameSalaryChanges,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
 import {
+  getSalarySimulationMock,
   salarySimulationRequestMock,
   salaryTargetSaveResponseMock,
 } from "@/mocks/salaryApi";
@@ -88,15 +89,19 @@ function SalarySimulator() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] = useState<"SMB_SOLUTION" | "LARGE">(
-    "SMB_SOLUTION"
-  );
+  const [companyGroup, setCompanyGroup] = useState<"SMALL" | "LARGE">("LARGE");
   const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
     null
   );
   const [changes, setChanges] = useState<SalaryChanges>({});
 
   const hasChanges = !sameSalaryChanges(changes, {});
+  const request = buildSalarySimulationRequest(
+    changes,
+    companyGroup,
+    salarySimulationRequestMock.baseSpecProfileId
+  );
+  const result = request ? getSalarySimulationMock(request) : null;
 
   const closeComparison = () => {
     if (location.state?.fromSalarySimulator === true) {
@@ -136,10 +141,7 @@ function SalarySimulator() {
   };
 
   if (isComparing) {
-    const sampleChanges = salarySimulationRequestMock.changes;
-    const matchesMock =
-      companyGroup === salarySimulationRequestMock.companyGroupScale &&
-      sameSalaryChanges(changes, sampleChanges);
+    const matchesMock = result?.simulated != null;
 
     return (
       <>
@@ -155,8 +157,8 @@ function SalarySimulator() {
               현재 설정한 조건에 해당하는 비교 Mock 데이터가 없어요.
             </p>
             <p className="mt-2 text-[12px] text-text-muted">
-              실제 API 연동 전까지는 백엔드 명세의 인턴 6개월 예시만 확인할 수
-              있어요.
+              Mock은 명세에 제시된 백엔드 개발 인턴 예시와 입력 내용이 일치할
+              때만 제공됩니다.
             </p>
             <button
               type="button"
@@ -174,26 +176,43 @@ function SalarySimulator() {
   const compareParams = new URLSearchParams(searchParams);
   compareParams.set("view", "compare");
 
-  const result = getSalarySimulationMock(changes);
-  const changedSalary = result.startingSalary;
-  const startingSalary = result.base.find(
+  const baseResults = result?.base.salaryResults ?? [];
+  const simulatedResults = result?.simulated?.salaryResults ?? [];
+  const startingSalary = baseResults.find(
     ({ annual }) => annual === 0
-  )?.incomeExpected;
-  const chartData = result.base.map(({ annual, incomeExpected }) => ({
-    year: annual,
-    salary: incomeExpected,
+  )?.annualIncomeExpected;
+  const changedSalary = simulatedResults.find(
+    ({ annual }) => annual === 0
+  )?.annualIncomeExpected;
+  const salaryDelta =
+    startingSalary !== undefined && changedSalary !== undefined
+      ? changedSalary - startingSalary
+      : null;
+  const chartData = baseResults.map((item) => ({
+    year: item.annual,
+    salary: item.annualIncomeExpected,
+    lower: item.annualIncomeMin,
+    upper: item.annualIncomeMax,
   }));
-  const comparisonData = changedSalary
-    ? [{ year: 0, salary: changedSalary.incomeExpected }]
+  const comparisonData = result?.simulated
+    ? simulatedResults
+        .filter(({ annual }) => annual === 0)
+        .map(({ annual, annualIncomeExpected }) => ({
+          year: annual,
+          salary: annualIncomeExpected,
+        }))
     : null;
-
-  let previewMessage = "이 조건 조합에 해당하는 변경 후 Mock 예시가 없어요.";
-
-  if (changedSalary) {
-    previewMessage = changedSalary.combined
-      ? "조건별 초봉 상승폭을 단순 합산한 Mock 예시입니다."
-      : "변경 후 수치는 첫 취업 초봉 예시만 제공돼요.";
-  }
+  const previewMessage = !result
+    ? "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
+    : result.simulated
+      ? [
+          result.preparationPeriod,
+          result.estimatedCost,
+          result.decisionCriteria,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요.";
 
   return (
     <div className="w-full lg:-mb-8">
@@ -214,12 +233,12 @@ function SalarySimulator() {
               value={companyGroup}
               onChange={(event) =>
                 setCompanyGroup(
-                  event.target.value === "LARGE" ? "LARGE" : "SMB_SOLUTION"
+                  event.target.value === "LARGE" ? "LARGE" : "SMALL"
                 )
               }
               className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
             >
-              <option value="SMB_SOLUTION">중견 IT 서비스</option>
+              <option value="SMALL">중소기업</option>
               <option value="LARGE">대기업</option>
             </select>
             <img
@@ -274,17 +293,17 @@ function SalarySimulator() {
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
-                  {changedSalary
-                    ? formatManwon(changedSalary.incomeExpected)
-                    : "–"}
-                  {changedSalary && (
+                  {changedSalary === undefined
+                    ? "–"
+                    : formatManwon(changedSalary)}
+                  {changedSalary !== undefined && (
                     <span className="ml-0.5 text-[13px]">만 원</span>
                   )}
                 </p>
-                {changedSalary && (
+                {salaryDelta !== null && (
                   <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
-                    {changedSalary.delta > 0 ? "+" : ""}
-                    {formatManwon(changedSalary.delta)}만 원
+                    {salaryDelta > 0 ? "+" : ""}
+                    {formatManwon(salaryDelta)}만 원
                   </span>
                 )}
               </div>
@@ -309,9 +328,7 @@ function SalarySimulator() {
               role="status"
               className="mt-1 text-[13px] leading-5 text-text-secondary"
             >
-              {hasChanges
-                ? previewMessage
-                : `기업군 공통 Mock 예시 연봉입니다. ${result.notice}`}
+              {previewMessage}
             </p>
           </div>
         </section>

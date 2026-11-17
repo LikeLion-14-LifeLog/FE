@@ -1,5 +1,6 @@
 import type {
   SalarySimulationRequest,
+  SalarySimulationData,
   SalarySimulationResponse,
   SalaryTargetSaveResponse,
   SalaryTargetResponse,
@@ -119,8 +120,7 @@ export const salaryTargetSaveResponseMock = {
         expectedStartingSalary: 41000000,
         salaryIncreaseAmount: 5000000,
         preparationPeriod: "약 6개월",
-        estimatedCost:
-          "직접 준비 비용은 별도 확인 필요 (인턴 급여와 분리)",
+        estimatedCost: "직접 준비 비용은 별도 확인 필요 (인턴 급여와 분리)",
         decisionCriteria:
           "실무 수행 경험과 서비스 운영 역량을 평가하는 직무 지원에 적합",
       },
@@ -133,8 +133,7 @@ export const salaryTargetSaveResponseMock = {
         expectedStartingSalary: 39000000,
         salaryIncreaseAmount: 3000000,
         preparationPeriod: "약 2~3개월",
-        estimatedCost:
-          "약 35만 원 (응시료·교재비 기준 참고 추정)",
+        estimatedCost: "약 35만 원 (응시료·교재비 기준 참고 추정)",
         decisionCriteria:
           "클라우드 기반 서비스 개발에 필요한 기본 역량 보완에 적합",
       },
@@ -147,8 +146,7 @@ export const salaryTargetSaveResponseMock = {
         expectedStartingSalary: 45500000,
         salaryIncreaseAmount: 9500000,
         preparationPeriod: "약 2년 (4학기 기준)",
-        estimatedCost:
-          "약 1,200만 원 (등록금 기준 참고 추정, 생활비 제외)",
+        estimatedCost: "약 1,200만 원 (등록금 기준 참고 추정, 생활비 제외)",
         decisionCriteria:
           "전공 심화 지식과 연구 경험을 요구하는 연구개발 직무 지원에 적합",
       },
@@ -195,3 +193,47 @@ export const salaryTargetEmptyResponseMock: SalaryTargetResponse = {
   message: "요청 성공",
   data: null,
 };
+export function getSalarySimulationMock(
+  request: SalarySimulationRequest
+): SalarySimulationData | null {
+  if (
+    request.baseSpecProfileId !==
+      salarySimulationRequestMock.baseSpecProfileId ||
+    request.companyGroupScale !== salarySimulationRequestMock.companyGroupScale
+  ) {
+    return null;
+  }
+
+  const changes = request.changes;
+  if (!changes || Object.values(changes).every((items) => !items?.length)) {
+    return salaryBaseResponseMock.data;
+  }
+
+  const expected = salarySimulationRequestMock.changes.experiences;
+  const actual = changes.experiences;
+  if (
+    changes.academicAbilities?.length ||
+    changes.certificates?.length ||
+    changes.languageExamScores?.length ||
+    !actual ||
+    actual.length !== expected.length
+  ) {
+    return null;
+  }
+
+  return actual.every((item, index) => {
+    const sample = expected[index];
+    return (
+      item.type === sample.type &&
+      item.title === sample.title &&
+      item.startedYearMonth === sample.startedYearMonth &&
+      item.endedYearMonth === sample.endedYearMonth &&
+      item.description === sample.description &&
+      item.awarded === sample.awarded &&
+      item.organizerName === sample.organizerName &&
+      item.awardGrade === sample.awardGrade
+    );
+  })
+    ? salarySimulationResponseMock.data
+    : null;
+}
