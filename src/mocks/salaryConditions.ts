@@ -5,25 +5,7 @@ export const salaryConditions: SalaryCondition[] = [
     field: "EXPERIENCE",
     label: "직무 경험",
     defaultSummary: "없음",
-    options: [
-      {
-        optionValue: "INTERNSHIP_3M",
-        label: "3개월",
-        summary: "인턴 3개월",
-        changes: { experience: { type: "INTERNSHIP", durationMonths: 3 } },
-      },
-      {
-        optionValue: "INTERNSHIP_6M",
-        label: "6개월",
-        summary: "인턴 6개월",
-        changes: { experience: { type: "INTERNSHIP", durationMonths: 6 } },
-      },
-      {
-        optionValue: "TRAINING_BASIC",
-        label: "직무 역량 교육 · 기초 프로젝트",
-        changes: { experience: { type: "TRAINING", durationMonths: 3 } },
-      },
-    ],
+    options: [],
   },
   {
     field: "CERTIFICATE",
