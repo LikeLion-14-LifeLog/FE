@@ -1,14 +1,14 @@
+import type { SalaryExperience } from "./salaryApi";
+
 export type SalaryConditionField =
-  | "EXPERIENCE"
-  | "CERTIFICATE"
-  | "LANGUAGE"
-  | "ACADEMIC";
+  "EXPERIENCE" | "CERTIFICATE" | "LANGUAGE" | "ACADEMIC";
 
 export type SalaryChanges = {
   experience?: {
     type: "INTERNSHIP" | "TRAINING";
     durationMonths: number;
   } | null;
+  experiences?: SalaryExperience[];
   addCertificateIds?: number[];
   languageScore?: {
     languageExamId: number;

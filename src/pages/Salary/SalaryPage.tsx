@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import {
   buildSalaryChanges,
   getSalaryOptionsMock,
@@ -18,6 +23,8 @@ import type {
 } from "@/types/salary";
 import SalaryConditionDrawer from "./components/SalaryConditionDrawer";
 import SalaryOptions from "./components/SalaryOptions";
+import type { SalaryExperience } from "@/types/salaryApi";
+import SalaryExperienceDrawer from "./components/SalaryExperienceDrawer";
 
 const changeKeyByField = {
   EXPERIENCE: "experience",
@@ -31,7 +38,7 @@ const formatManwon = (won: number) =>
 
 function getSelectedOptions(
   { field, options }: SalaryCondition,
-  changes: SalaryChanges,
+  changes: SalaryChanges
 ) {
   if (field === "CERTIFICATE") {
     const selectedIds = new Set(changes.addCertificateIds);
@@ -48,7 +55,7 @@ function getSelectedOptions(
   if (change == null) return [];
 
   return options.filter((option) =>
-    sameSalaryChanges(option.changes, { [key]: change }),
+    sameSalaryChanges(option.changes, { [key]: change })
   );
 }
 
@@ -77,9 +84,12 @@ function SalarySimulator({ email }: { email: string | undefined }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] =
-    useState<"SMB_SOLUTION" | "LARGE">("SMB_SOLUTION");
-  const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(null);
+  const [companyGroup, setCompanyGroup] = useState<"SMB_SOLUTION" | "LARGE">(
+    "SMB_SOLUTION"
+  );
+  const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
+    null
+  );
   const [changes, setChanges] = useState<SalaryChanges>({});
 
   const hasChanges = !sameSalaryChanges(changes, {});
@@ -111,10 +121,20 @@ function SalarySimulator({ email }: { email: string | undefined }) {
     setOpenCondition(null);
   };
 
+  const applyExperiences = (experiences: SalaryExperience[]) => {
+    setChanges((previous) => {
+      const next = { ...previous };
+      delete next.experiences;
+
+      return experiences.length > 0 ? { ...next, experiences } : next;
+    });
+    setOpenCondition(null);
+  };
+
   if (isComparing) {
     const comparison = getSalaryOptionsMock(email);
     const currentOption = comparison.options.find((option) =>
-      sameSalaryChanges(option.changes, changes),
+      sameSalaryChanges(option.changes, changes)
     );
 
     return (
@@ -139,7 +159,7 @@ function SalarySimulator({ email }: { email: string | undefined }) {
   const result = getSalarySimulationMock(changes);
   const changedSalary = result.startingSalary;
   const startingSalary = result.base.find(
-    ({ annual }) => annual === 0,
+    ({ annual }) => annual === 0
   )?.incomeExpected;
   const chartData = result.base.map(({ annual, incomeExpected }) => ({
     year: annual,
@@ -176,7 +196,7 @@ function SalarySimulator({ email }: { email: string | undefined }) {
               value={companyGroup}
               onChange={(event) =>
                 setCompanyGroup(
-                  event.target.value === "LARGE" ? "LARGE" : "SMB_SOLUTION",
+                  event.target.value === "LARGE" ? "LARGE" : "SMB_SOLUTION"
                 )
               }
               className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
@@ -215,14 +235,20 @@ function SalarySimulator({ email }: { email: string | undefined }) {
             <div>
               <p className="text-[13px] text-text-secondary">현재 예상 초봉</p>
               <p className="mt-2 text-[26px] font-bold tracking-[-0.04em] sm:text-[34px]">
-                {startingSalary === undefined ? "–" : formatManwon(startingSalary)}
+                {startingSalary === undefined
+                  ? "–"
+                  : formatManwon(startingSalary)}
                 {startingSalary !== undefined && (
-                  <span className="ml-0.5 text-[13px] tracking-normal">만 원</span>
+                  <span className="ml-0.5 text-[13px] tracking-normal">
+                    만 원
+                  </span>
                 )}
               </p>
             </div>
 
-            <span aria-hidden="true" className="pb-1 text-[17px]">→</span>
+            <span aria-hidden="true" className="pb-1 text-[17px]">
+              →
+            </span>
 
             <div>
               <p className="text-[13px] text-text-secondary">
@@ -230,8 +256,12 @@ function SalarySimulator({ email }: { email: string | undefined }) {
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
-                  {changedSalary ? formatManwon(changedSalary.incomeExpected) : "–"}
-                  {changedSalary && <span className="ml-0.5 text-[13px]">만 원</span>}
+                  {changedSalary
+                    ? formatManwon(changedSalary.incomeExpected)
+                    : "–"}
+                  {changedSalary && (
+                    <span className="ml-0.5 text-[13px]">만 원</span>
+                  )}
                 </p>
                 {changedSalary && (
                   <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
@@ -245,13 +275,22 @@ function SalarySimulator({ email }: { email: string | undefined }) {
 
           <div className="border-t border-border pt-5 pb-3">
             <div className="mx-auto max-w-[920px]">
-              <SalaryChart data={chartData} comparisonData={comparisonData} wide />
+              <SalaryChart
+                data={chartData}
+                comparisonData={comparisonData}
+                wide
+              />
             </div>
           </div>
 
           <div className="border-t border-border pt-4 sm:min-h-[63px]">
-            <p className="text-[12px] text-text-secondary">해석할 때 유의할 점</p>
-            <p role="status" className="mt-1 text-[13px] leading-5 text-text-secondary">
+            <p className="text-[12px] text-text-secondary">
+              해석할 때 유의할 점
+            </p>
+            <p
+              role="status"
+              className="mt-1 text-[13px] leading-5 text-text-secondary"
+            >
               {hasChanges
                 ? previewMessage
                 : `기업군 공통 Mock 예시 연봉입니다. ${result.notice}`}
@@ -264,7 +303,10 @@ function SalarySimulator({ email }: { email: string | undefined }) {
           className="rounded-[18px] border border-border px-6 py-[26px]"
         >
           <div className="flex items-center justify-between gap-3 border-b-2 border-border pb-5">
-            <h2 id="salary-conditions-title" className="text-[17px] font-medium">
+            <h2
+              id="salary-conditions-title"
+              className="text-[17px] font-medium"
+            >
               변경할 조건 선택
             </h2>
             <button
@@ -279,12 +321,19 @@ function SalarySimulator({ email }: { email: string | undefined }) {
 
           {salaryConditions.map((condition) => {
             const selected = getSelectedOptions(condition, changes);
-            const summary = selected
-              .map((option) => option.summary ?? option.label)
-              .join(", ");
+            const summary =
+              condition.field === "EXPERIENCE"
+                ? (changes.experiences?.map((item) => item.title).join(", ") ??
+                  "")
+                : selected
+                    .map((option) => option.summary ?? option.label)
+                    .join(", ");
             const hasFieldChange = !sameSalaryChanges(
-              { [changeKeyByField[condition.field]]: changes[changeKeyByField[condition.field]] },
-              {},
+              {
+                [changeKeyByField[condition.field]]:
+                  changes[changeKeyByField[condition.field]],
+              },
+              {}
             );
 
             return (
@@ -301,7 +350,9 @@ function SalarySimulator({ email }: { email: string | undefined }) {
                   </span>
                   <span className="mt-2 block break-words text-[13px] text-text-secondary">
                     {summary ||
-                      (hasFieldChange ? "변경 조건 적용됨" : condition.defaultSummary)}
+                      (hasFieldChange
+                        ? "변경 조건 적용됨"
+                        : condition.defaultSummary)}
                   </span>
                 </span>
                 <span
@@ -325,7 +376,13 @@ function SalarySimulator({ email }: { email: string | undefined }) {
         </section>
       </div>
 
-      {openCondition && (
+      {openCondition?.field === "EXPERIENCE" ? (
+        <SalaryExperienceDrawer
+          selected={changes.experiences ?? []}
+          onClose={() => setOpenCondition(null)}
+          onApply={applyExperiences}
+        />
+      ) : openCondition ? (
         <SalaryConditionDrawer
           key={openCondition.field}
           condition={openCondition}
@@ -333,7 +390,7 @@ function SalarySimulator({ email }: { email: string | undefined }) {
           onClose={() => setOpenCondition(null)}
           onApply={applyCondition}
         />
-      )}
+      ) : null}
     </div>
   );
 }
