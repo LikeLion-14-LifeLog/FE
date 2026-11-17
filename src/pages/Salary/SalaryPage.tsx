@@ -7,13 +7,16 @@ import {
 } from "react-router-dom";
 import {
   buildSalaryChanges,
-  getSalaryOptionsMock,
   getSalarySimulationMock,
   sameSalaryChanges,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
+import {
+  salarySimulationRequestMock,
+  salaryTargetSaveResponseMock,
+} from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
 import type {
   SalaryChanges,
@@ -22,12 +25,11 @@ import type {
   SalaryConditionOption,
 } from "@/types/salary";
 import SalaryConditionDrawer from "./components/SalaryConditionDrawer";
-import SalaryOptions from "./components/SalaryOptions";
-import type { SalaryExperience } from "@/types/salaryApi";
 import SalaryExperienceDrawer from "./components/SalaryExperienceDrawer";
+import SalaryOptions from "./components/SalaryOptions";
 
 const changeKeyByField = {
-  EXPERIENCE: "experience",
+  EXPERIENCE: "experiences",
   CERTIFICATE: "addCertificateIds",
   LANGUAGE: "languageScore",
   ACADEMIC: "academic",
@@ -49,6 +51,8 @@ function getSelectedOptions(
     });
   }
 
+  if (field === "EXPERIENCE") return [];
+
   const key = changeKeyByField[field];
   const change = changes[key];
 
@@ -67,7 +71,7 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
       </p>
       <h1 className="mt-2 text-[30px] leading-[37.5px] font-extrabold tracking-[-0.6px] text-text-primary">
         {comparing
-          ? "준비 선택지를 같은 기준으로 비교해보세요"
+          ? "설정한 조건과 AI 추천 선택지를 비교해보세요"
           : "조건을 바꾸면, 연봉은 얼마나 달라질까요?"}
       </h1>
       <p className="mt-2 text-[15.5px] leading-6 text-text-secondary">
@@ -79,7 +83,7 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
   );
 }
 
-function SalarySimulator({ email }: { email: string | undefined }) {
+function SalarySimulator() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,34 +125,48 @@ function SalarySimulator({ email }: { email: string | undefined }) {
     setOpenCondition(null);
   };
 
-  const applyExperiences = (experiences: SalaryExperience[]) => {
+  const applyExperiences = (experiences: SalaryChanges["experiences"]) => {
     setChanges((previous) => {
       const next = { ...previous };
+      delete next.experience;
       delete next.experiences;
-
-      return experiences.length > 0 ? { ...next, experiences } : next;
+      return experiences?.length ? { ...next, experiences } : next;
     });
     setOpenCondition(null);
   };
 
   if (isComparing) {
-    const comparison = getSalaryOptionsMock(email);
-    const currentOption = comparison.options.find((option) =>
-      sameSalaryChanges(option.changes, changes)
-    );
+    const sampleChanges = salarySimulationRequestMock.changes;
+    const matchesMock =
+      companyGroup === salarySimulationRequestMock.companyGroupScale &&
+      sameSalaryChanges(changes, sampleChanges);
 
     return (
       <>
         <SalaryTitle comparing />
-        <SalaryOptions
-          comparison={comparison}
-          currentOptionKey={currentOption?.optionKey}
-          onBack={closeComparison}
-          onApply={(option) => {
-            setChanges(option.changes);
-            closeComparison();
-          }}
-        />
+        {matchesMock ? (
+          <SalaryOptions
+            comparison={salaryTargetSaveResponseMock.data}
+            onBack={closeComparison}
+          />
+        ) : (
+          <div className="rounded-xl border border-border px-6 py-12 text-center">
+            <p role="status" className="text-[14px] text-text-secondary">
+              현재 설정한 조건에 해당하는 비교 Mock 데이터가 없어요.
+            </p>
+            <p className="mt-2 text-[12px] text-text-muted">
+              실제 API 연동 전까지는 백엔드 명세의 인턴 6개월 예시만 확인할 수
+              있어요.
+            </p>
+            <button
+              type="button"
+              onClick={closeComparison}
+              className="mt-6 cursor-pointer text-[13px] font-bold text-brand-strong"
+            >
+              조건 변경으로 돌아가기
+            </button>
+          </div>
+        )}
       </>
     );
   }
@@ -328,13 +346,16 @@ function SalarySimulator({ email }: { email: string | undefined }) {
                 : selected
                     .map((option) => option.summary ?? option.label)
                     .join(", ");
-            const hasFieldChange = !sameSalaryChanges(
-              {
-                [changeKeyByField[condition.field]]:
-                  changes[changeKeyByField[condition.field]],
-              },
-              {}
-            );
+            const hasFieldChange =
+              condition.field === "EXPERIENCE"
+                ? !!changes.experiences?.length
+                : !sameSalaryChanges(
+                    {
+                      [changeKeyByField[condition.field]]:
+                        changes[changeKeyByField[condition.field]],
+                    },
+                    {}
+                  );
 
             return (
               <button
@@ -371,7 +392,7 @@ function SalarySimulator({ email }: { email: string | undefined }) {
             preventScrollReset
             className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
           >
-            준비 선택지 한눈에 비교 <span aria-hidden="true">→</span>
+            설정한 조건과 AI 추천 선택지 비교 <span aria-hidden="true">→</span>
           </Link>
         </section>
       </div>
@@ -399,9 +420,6 @@ export default function SalaryPage() {
   const email = useCurrentUser()?.email;
 
   return (
-    <SalarySimulator
-      key={email === undefined ? "guest" : `user:${email}`}
-      email={email}
-    />
+    <SalarySimulator key={email === undefined ? "guest" : `user:${email}`} />
   );
 }
