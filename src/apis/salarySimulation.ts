@@ -1,13 +1,8 @@
-import { getSavedSpecProfileMock } from "@/apis/spec";
 import {
   salaryComparisonExample,
   salarySimulationExample,
 } from "@/mocks/salarySimulation";
-import type {
-  SalaryChanges,
-  SalaryComparison,
-  SalaryConditionOption,
-} from "@/types/salary";
+import type { SalaryChanges, SalaryConditionOption } from "@/types/salary";
 
 const salaryOptionPreviews: { changes: SalaryChanges; delta: number }[] = [
   ...salaryComparisonExample.options,
@@ -109,36 +104,5 @@ export function getSalarySimulationMock(changes: SalaryChanges) {
       baseSalary === undefined
         ? null
         : getStartingSalaryPreview(changes, baseSalary),
-  };
-}
-
-export function getSalaryOptionsMock(
-  email: string | undefined
-): SalaryComparison {
-  const certificates = email
-    ? (getSavedSpecProfileMock(email)?.certificates ?? [])
-    : [];
-  const ownedIds = new Set(
-    certificates.map(({ certificateId }) => certificateId)
-  );
-
-  const ownsAwsByName = certificates.some(
-    ({ certificateId, certificateName }) => {
-      if (certificateId != null) return false;
-
-      const name = certificateName.toLowerCase().replace(/[\s()/.-]+/g, "");
-      return name === "awssaa" || name === "awssolutionsarchitectassociate";
-    }
-  );
-
-  if (ownsAwsByName) ownedIds.add(1021);
-
-  return {
-    ...salaryComparisonExample,
-    basis: `기업군 공통 Mock 예시 · ${salaryComparisonExample.basis}`,
-    options: salaryComparisonExample.options.filter(
-      ({ changes }) =>
-        !changes.addCertificateIds?.some((id) => ownedIds.has(id))
-    ),
   };
 }
