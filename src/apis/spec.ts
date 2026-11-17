@@ -1,4 +1,5 @@
-import { mockSpecFormOptions } from "@/mocks/spec";
+import { specFormOptions } from "@/constants/specFormOptions";
+import type { ApiResponse } from "@/types/spec/api";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
 import type { Certificate, LanguageScore } from "@/types/spec/qualification";
@@ -16,8 +17,34 @@ export type SpecProfileDraft = {
 const key = (email: string) =>
   `lifelog:spec:mock:${email.trim().toLowerCase()}`;
 
-export async function getSpecFormOptions(): Promise<SpecFormOptions> {
-  return structuredClone(mockSpecFormOptions);
+export async function getSpecFormOptions(
+  accessToken: string,
+): Promise<SpecFormOptions> {
+  const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
+  const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "") ?? "";
+  const options = structuredClone(specFormOptions);
+
+  if (!baseUrl) return options;
+
+  const response = await fetch(`${baseUrl}/api/residential-areas`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+ });
+
+  if (!response.ok) {
+    throw new Error(`거주 지역 조회 실패 (HTTP ${response.status})`);
+  }
+
+  const body: ApiResponse<Pick<SpecFormOptions, "residentialAreas">> =
+    await response.json();
+
+  if (!body.success || !Array.isArray(body.data?.residentialAreas)) {
+    throw new Error("거주 지역 응답이 올바르지 않습니다.");
+  }
+
+  return {
+    ...options,
+    residentialAreas: body.data.residentialAreas,
+  };
 }
 
 export async function saveSpecProfileMock(
