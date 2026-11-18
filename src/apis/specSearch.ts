@@ -1,10 +1,17 @@
 import {
   fromJob,
+  fromMajor,
+  fromCertificate,
   mockSearchItems,
   type SearchItem,
   type SearchKind,
 } from "@/mocks/specSearch";
-import type { JobSearchResponse } from "@/types/spec/search";
+import type {
+  JobSearchData,
+  MajorSearchData,
+  CertificationSearchData,
+  StandardSearchResponse,
+} from "@/types/spec/search";
 
 export type SearchQuery = {
   kind: SearchKind;
@@ -19,7 +26,10 @@ export type SearchPage = {
   hasNext: boolean;
 };
 
-async function searchJobs(keyword: string, page: number): Promise<SearchPage> {
+async function fetchSearchData<T>(
+  path: string,
+  params: URLSearchParams
+): Promise<T> {
   const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
   const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
 
@@ -30,46 +40,46 @@ async function searchJobs(keyword: string, page: number): Promise<SearchPage> {
   const accessToken = localStorage.getItem("accessToken")?.trim();
 
   if (!accessToken) {
-    throw new Error("직무 조회에 필요한 인증 토큰이 없습니다.");
+    throw new Error("검색에 필요한 인증 토큰이 없습니다.");
   }
 
-  const params = new URLSearchParams({
-    page: String(page),
-    size: "20",
-  });
-
-  const query = keyword.trim();
-
-  if (query) {
-    params.set("keyword", query);
-  }
-
-  const response = await fetch(`${baseUrl}/api/jobs?${params}`, {
+  const response = await fetch(`${baseUrl}${path}?${params}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
 
   if (!response.ok) {
-    throw new Error(`직무 조회 실패 (HTTP ${response.status})`);
+    throw new Error(`검색 요청 실패 (HTTP ${response.status})`);
   }
 
-  const body: JobSearchResponse = await response.json();
+  const body: StandardSearchResponse<T> = await response.json();
 
+  if (body.success !== true || body.data == null) {
+    throw new Error("검색 응답이 올바르지 않습니다.");
+  }
+
+  return body.data;
+}
+
+function toSearchPage<T>(
+  items: T[],
+  data: { totalElements: number; hasNext: boolean },
+  toItem: (item: T) => SearchItem
+): SearchPage {
   if (
-    body.success !== true ||
-    !Array.isArray(body.data?.jobs) ||
-    !Number.isSafeInteger(body.data.totalElements) ||
-    body.data.totalElements < 0 ||
-    typeof body.data.hasNext !== "boolean"
+    !Array.isArray(items) ||
+    !Number.isSafeInteger(data.totalElements) ||
+    data.totalElements < 0 ||
+    typeof data.hasNext !== "boolean"
   ) {
-    throw new Error("직무 조회 응답이 올바르지 않습니다.");
+    throw new Error("검색 목록 응답이 올바르지 않습니다.");
   }
 
   return {
-    items: body.data.jobs.map(fromJob),
-    total: body.data.totalElements,
-    hasNext: body.data.hasNext,
+    items: items.map(toItem),
+    total: data.totalElements,
+    hasNext: data.hasNext,
   };
 }
 
@@ -83,27 +93,62 @@ export async function searchSpecItems({
     throw new Error("INVALID_PAGE");
   }
 
-  if (kind === "job") {
-    return searchJobs(keyword, page);
+  const query = keyword.trim();
+
+  // 어학 목록은 다음 API 연동 단계에서 교체한다.
+  if (kind === "language") {
+    const filtered = mockSearchItems.language.filter((item) => {
+      const matchesKeyword = item.name
+        .toLocaleLowerCase()
+        .includes(query.toLocaleLowerCase());
+      const matchesCategory = category === "all" || item.tab === category;
+
+      return matchesKeyword && matchesCategory;
+    });
+
+    const size = 5;
+    const start = (page - 1) * size;
+
+    return {
+      items: filtered.slice(start, start + size),
+      total: filtered.length,
+      hasNext: start + size < filtered.length,
+    };
   }
 
-  // 전공·자격증·어학은 각 API 연결 전까지 기존 Mock을 유지한다.
-  const query = keyword.trim().toLocaleLowerCase();
-  const filtered = mockSearchItems[kind].filter((item) => {
-    const matchesKeyword = item.name.toLocaleLowerCase().includes(query);
-    const matchesCategory =
-      category === "all" ||
-      (kind === "major" ? item.category === category : item.tab === category);
-
-    return matchesKeyword && matchesCategory;
+  const params = new URLSearchParams({
+    page: String(page),
+    size: "20",
   });
 
-  const size = 5;
-  const start = (page - 1) * size;
+  if (query) {
+    params.set("keyword", query);
+  }
 
-  return {
-    items: filtered.slice(start, start + size),
-    total: filtered.length,
-    hasNext: start + size < filtered.length,
-  };
+  if (kind === "job") {
+    const data = await fetchSearchData<JobSearchData>("/api/jobs", params);
+
+    return toSearchPage(data.jobs, data, fromJob);
+  }
+
+  if (kind === "major") {
+    if (category !== "all") {
+      params.set("mainField", category);
+    }
+
+    const data = await fetchSearchData<MajorSearchData>("/api/majors", params);
+
+    return toSearchPage(data.majors, data, fromMajor);
+  }
+
+  if (category !== "all") {
+    params.set("type", category);
+  }
+
+  const data = await fetchSearchData<CertificationSearchData>(
+    "/api/certifications",
+    params
+  );
+
+  return toSearchPage(data.certifications, data, fromCertificate);
 }
