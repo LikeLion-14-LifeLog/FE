@@ -1,4 +1,4 @@
-import type { SalaryExperience } from "./salaryApi";
+import type { SalaryAcademicAbility, SalaryExperience } from "./salaryApi";
 
 export type SalaryConditionField =
   "EXPERIENCE" | "CERTIFICATE" | "LANGUAGE" | "ACADEMIC";
@@ -10,14 +10,16 @@ export type SalaryChanges = {
   } | null;
   experiences?: SalaryExperience[];
   addCertificateIds?: number[];
-  languageScore?: {
+  languageScores?: {
     languageExamId: number;
     scoreNumeric: number | null;
     scoreGrade: string | null;
-  };
+  }[];
   academic?: {
     type: "UNIVERSITY" | "GRADUATE_SCHOOL";
     universityGrade?: number;
+    details?: SalaryAcademicAbility;
+    majorName?: string;
   };
 };
 
