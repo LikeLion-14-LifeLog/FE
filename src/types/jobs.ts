@@ -31,6 +31,32 @@ export type JobPostingCard = {
   bookmarked: boolean;
 };
 
+/** 서버 공고 상세를 화면용으로 변환한 값 (GET /api/job-postings/{id}) */
+export type JobPostingDetail = {
+  id: string;
+  title: string;
+  isClosed: boolean;
+  company: string;
+  /** 업종·기업 규모 (없으면 null) */
+  companyDescription: string | null;
+  position: string;
+  /** 원본 급여 문구 (없으면 null) */
+  payText: string | null;
+  location: string | null;
+  address: string | null;
+  employmentType: string;
+  education: string | null;
+  /** "YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:mm:ss". 상시 채용이면 null */
+  closesAt: string | null;
+  /** 지났으면 음수, 상시 채용이면 null */
+  daysLeft: number | null;
+  /** 본문 섹션. lines 는 줄 단위 텍스트 */
+  sections: { title: string; lines: string[] }[];
+  applyUrl: string | null;
+  bookmarkCount: number;
+  bookmarked: boolean;
+};
+
 export type DesiredJob = {
   code: string;
   name: string;

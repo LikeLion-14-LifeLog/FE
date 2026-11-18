@@ -55,7 +55,9 @@ const JobChancePage = () => {
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<JobPostingList | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryKey = `${region}|${sort}|${page}`;
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const isLoading = settledKey !== queryKey;
   // TODO: 공고 저장/저장취소 API 연동 시 제거 (현재는 화면에서만 토글)
   const [bookmarkOverrides, setBookmarkOverrides] = useState<
     ReadonlyMap<string, boolean>
@@ -65,7 +67,7 @@ const JobChancePage = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
+    const key = `${region}|${sort}|${page}`;
     getJobPostings({
       region: region === ALL_REGION ? undefined : region,
       sort,
@@ -82,7 +84,7 @@ const JobChancePage = () => {
         setError(e);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) setSettledKey(key);
       });
     return () => controller.abort();
   }, [region, sort, page]);
