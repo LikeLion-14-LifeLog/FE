@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getSavedSpecProfileMock } from "@/apis/spec";
-import type { SalaryTargetSaveData } from "@/types/salaryApi";
+import type { SalaryCompanyScale, SalaryTargetSaveData } from "@/types/salaryApi";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
@@ -123,7 +123,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] = useState<"SMALL" | "LARGE">("LARGE");
+  const [companyGroup, setCompanyGroup] = useState<Exclude<SalaryCompanyScale, null>>("LARGE");
   const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
     null
   );
@@ -160,9 +160,9 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
       setComparisonError(conditionError);
       return;
     }
-    if (!request || !comparisonKey) {
+    if (!request || !comparisonKey || !getSalaryTargetSaveMock(request)) {
       setComparisonError(
-        "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+        "현재 선택한 기업군 또는 조건은 Mock 비교를 지원하지 않아요. 실제 API 연동 후 이용할 수 있습니다."
       );
       return;
     }
@@ -248,11 +248,10 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
         ) : (
           <div className="rounded-xl border border-border px-6 py-12 text-center">
             <p role="status" className="text-[14px] text-text-secondary">
-              현재 설정한 조건에 해당하는 비교 Mock 데이터가 없어요.
+              이전 비교 결과가 없거나 현재 조건의 Mock 비교를 지원하지 않아요.
             </p>
             <p className="mt-2 text-[12px] text-text-muted">
-              Mock은 명세에 제시된 백엔드 개발 인턴 예시와 입력 내용이 일치할
-              때만 제공됩니다.
+              비교 결과는 화면에 임시 저장됩니다. 조건을 다시 설정해 주세요.
             </p>
             <button
               type="button"
@@ -309,7 +308,9 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     (!request && changes.academic?.type === "UNIVERSITY"
       ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
       : !result
-        ? "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
+        ? companyGroup !== "LARGE"
+          ? "현재 기업군은 예측 Mock을 지원하지 않아요. 실제 연봉 예측은 API 연동 후 제공됩니다."
+          : "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
         : result.simulated
           ? [
               result.preparationPeriod,
@@ -347,13 +348,15 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   value={companyGroup}
                   onChange={(event) => {
                     setCompanyGroup(
-                      event.target.value === "LARGE" ? "LARGE" : "SMALL"
+                      event.target.value as Exclude<SalaryCompanyScale, null>
                     );
                     setComparisonError(null);
                   }}
                   className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
                 >
-                  <option value="SMALL">중소기업</option>
+                  <option value="STARTUP">스타트업</option>
+                  <option value="SMALL">소기업</option>
+                  <option value="MIDDLE">중기업</option>
                   <option value="LARGE">대기업</option>
                 </select>
                 <img
