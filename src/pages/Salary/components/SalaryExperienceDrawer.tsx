@@ -28,15 +28,16 @@ const isValidTargetExperience = (value: Experience) =>
   !!value.title.trim() &&
   value.title.length <= 255 &&
   value.description.length <= 300 &&
-  isValidYearMonth(value.startedYearMonth) &&
+  (!value.startedYearMonth || isValidYearMonth(value.startedYearMonth)) &&
   (!value.endedYearMonth ||
-    (isValidYearMonth(value.endedYearMonth) &&
+    (!!value.startedYearMonth &&
+      isValidYearMonth(value.endedYearMonth) &&
       value.startedYearMonth <= value.endedYearMonth));
 
 const toSalaryExperience = (value: Experience): SalaryExperience => ({
   type: "INTERNSHIP",
   title: value.title.trim(),
-  startedYearMonth: value.startedYearMonth,
+  startedYearMonth: value.startedYearMonth || null,
   endedYearMonth: value.endedYearMonth || null,
   description: value.description.trim() || null,
   awarded: false,
@@ -58,7 +59,7 @@ export default function SalaryExperienceDrawer({
       experienceId: null,
       type: item.type,
       title: item.title,
-      startedYearMonth: item.startedYearMonth,
+      startedYearMonth: item.startedYearMonth ?? "",
       endedYearMonth: item.endedYearMonth ?? "",
       description: item.description ?? "",
       awarded: item.awarded,
@@ -147,7 +148,7 @@ export default function SalaryExperienceDrawer({
                 {item.title}
               </p>
               <p className="mt-1 text-[11px] text-text-secondary">
-                {item.startedYearMonth}
+                {item.startedYearMonth || "기간 미입력"}
                 {item.endedYearMonth && ` ~ ${item.endedYearMonth}`}
               </p>
               <div className="mt-3 flex justify-end gap-4">

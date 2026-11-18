@@ -1,10 +1,6 @@
 import { useState } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import type { SalaryTargetSaveData } from "@/types/salaryApi";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
   buildSalarySimulationRequest,
@@ -15,8 +11,8 @@ import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
 import {
   getSalarySimulationMock,
+  getSalaryTargetSaveMock,
   salarySimulationRequestMock,
-  salaryTargetSaveResponseMock,
 } from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
 import type {
@@ -94,6 +90,12 @@ function SalarySimulator() {
     null
   );
   const [changes, setChanges] = useState<SalaryChanges>({});
+  const [comparisonCache, setComparisonCache] = useState<{
+    key: string;
+    data: SalaryTargetSaveData;
+  } | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
 
   const hasChanges = !sameSalaryChanges(changes, {});
   const request = buildSalarySimulationRequest(
@@ -102,6 +104,49 @@ function SalarySimulator() {
     salarySimulationRequestMock.baseSpecProfileId
   );
   const result = request ? getSalarySimulationMock(request) : null;
+  const comparisonKey = request ? JSON.stringify(request) : null;
+  const compareParams = new URLSearchParams(searchParams);
+  compareParams.set("view", "compare");
+
+  const openComparison = async () => {
+    if (comparisonLoading) return;
+
+    if (!request || !comparisonKey) {
+      setComparisonError(
+        "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+      );
+      return;
+    }
+
+    const showComparison = () =>
+      navigate(
+        { pathname: "/salary", search: `?${compareParams.toString()}` },
+        { state: { fromSalarySimulator: true }, preventScrollReset: true }
+      );
+
+    if (comparisonCache?.key === comparisonKey) {
+      showComparison();
+      return;
+    }
+
+    setComparisonLoading(true);
+    setComparisonError(null);
+    try {
+      const data = await getSalaryTargetSaveMock(request);
+      if (!data) {
+        setComparisonError(
+          "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+        );
+        return;
+      }
+      setComparisonCache({ key: comparisonKey, data });
+      showComparison();
+    } catch {
+      setComparisonError("비교 결과를 불러오지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
 
   const closeComparison = () => {
     if (location.state?.fromSalarySimulator === true) {
@@ -127,6 +172,7 @@ function SalarySimulator() {
       return { ...next, ...applied };
     });
 
+    setComparisonError(null);
     setOpenCondition(null);
   };
 
@@ -137,20 +183,19 @@ function SalarySimulator() {
       delete next.experiences;
       return experiences?.length ? { ...next, experiences } : next;
     });
+    setComparisonError(null);
     setOpenCondition(null);
   };
 
   if (isComparing) {
-    const matchesMock = result?.simulated != null;
+    const comparison =
+      comparisonCache?.key === comparisonKey ? comparisonCache.data : null;
 
     return (
       <>
         <SalaryTitle comparing />
-        {matchesMock ? (
-          <SalaryOptions
-            comparison={salaryTargetSaveResponseMock.data}
-            onBack={closeComparison}
-          />
+        {comparison ? (
+          <SalaryOptions comparison={comparison} onBack={closeComparison} />
         ) : (
           <div className="rounded-xl border border-border px-6 py-12 text-center">
             <p role="status" className="text-[14px] text-text-secondary">
@@ -172,9 +217,6 @@ function SalarySimulator() {
       </>
     );
   }
-
-  const compareParams = new URLSearchParams(searchParams);
-  compareParams.set("view", "compare");
 
   const baseResults = result?.base.salaryResults ?? [];
   const simulatedResults = result?.simulated?.salaryResults ?? [];
@@ -230,12 +272,14 @@ function SalarySimulator() {
           <div className="relative">
             <select
               id="salary-company"
+              disabled={comparisonLoading}
               value={companyGroup}
-              onChange={(event) =>
+              onChange={(event) => {
                 setCompanyGroup(
                   event.target.value === "LARGE" ? "LARGE" : "SMALL"
-                )
-              }
+                );
+                setComparisonError(null);
+              }}
               className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
             >
               <option value="SMALL">중소기업</option>
@@ -264,7 +308,7 @@ function SalarySimulator() {
               조건 변경에 따른 예상 변화
             </h2>
             <span className="text-[12px] text-text-secondary">
-              세전 기본급 기준
+              AI 예측 연봉
             </span>
           </div>
 
@@ -346,8 +390,11 @@ function SalarySimulator() {
             </h2>
             <button
               type="button"
-              disabled={!hasChanges}
-              onClick={() => setChanges({})}
+              disabled={!hasChanges || comparisonLoading}
+              onClick={() => {
+                setChanges({});
+                setComparisonError(null);
+              }}
               className="text-[12px] text-text-secondary enabled:cursor-pointer enabled:hover:text-brand-strong disabled:text-text-disabled"
             >
               초기화
@@ -379,8 +426,9 @@ function SalarySimulator() {
                 key={condition.field}
                 type="button"
                 aria-haspopup="dialog"
+                disabled={comparisonLoading}
                 onClick={() => setOpenCondition(condition)}
-                className="group flex min-h-[88px] w-full cursor-pointer items-center justify-between gap-3 border-b border-border py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+                className="group flex min-h-[88px] w-full cursor-pointer items-center justify-between gap-3 border-b border-border py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="min-w-0">
                   <span className="block text-[15px] font-bold transition-colors duration-150 group-hover:text-brand-strong group-focus-visible:text-brand-strong">
@@ -403,14 +451,22 @@ function SalarySimulator() {
             );
           })}
 
-          <Link
-            to={{ pathname: "/salary", search: `?${compareParams.toString()}` }}
-            state={{ fromSalarySimulator: true }}
-            preventScrollReset
-            className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+          <button
+            type="button"
+            onClick={openComparison}
+            disabled={!hasChanges || comparisonLoading}
+            className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 enabled:cursor-pointer enabled:hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
           >
-            설정한 조건과 AI 추천 선택지 비교 <span aria-hidden="true">→</span>
-          </Link>
+            {comparisonLoading
+              ? "비교 결과 불러오는 중..."
+              : "설정한 조건과 AI 추천 선택지 비교"}
+            <span aria-hidden="true">→</span>
+          </button>
+          {comparisonError && (
+            <p role="alert" className="pb-4 text-[12px] text-red-500">
+              {comparisonError}
+            </p>
+          )}
         </section>
       </div>
 
