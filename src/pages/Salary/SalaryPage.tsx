@@ -267,7 +267,18 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     );
   }
 
-  const baseResults = result?.base.salaryResults ?? [];
+  const baselineRequest = !result
+    ? buildSalarySimulationRequest(
+        {},
+        companyGroup,
+        salarySimulationRequestMock.baseSpecProfileId,
+        profile?.educations ?? []
+      )
+    : null;
+  const baseline = baselineRequest
+    ? getSalarySimulationMock(baselineRequest)
+    : null;
+  const baseResults = (result ?? baseline)?.base.salaryResults ?? [];
   const simulatedResults = result?.simulated?.salaryResults ?? [];
   const startingSalary = baseResults.find(
     ({ annual }) => annual === 0
