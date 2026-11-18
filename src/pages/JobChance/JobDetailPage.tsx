@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "@/apis/client";
-import { getJobPostingDetail } from "@/apis/jobPostings";
+import { getJobPostingDetail, setJobPostingBookmark } from "@/apis/jobPostings";
+import { useCurrentUser } from "@/store/authStore";
 import type { JobPostingDetail } from "@/types/jobs";
 import BookmarkButton from "./components/BookmarkButton";
 
@@ -102,11 +103,10 @@ const JobDetailPage = () => {
   const { jobId = "" } = useParams();
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState | null>(null);
-  // TODO: 공고 저장/저장취소 API 연동 시 제거 (현재는 화면에서만 토글)
-  const [bookmarkOverride, setBookmarkOverride] = useState<{
-    jobId: string;
-    bookmarked: boolean;
-  } | null>(null);
+  const [bookmarkPending, setBookmarkPending] = useState(false);
+
+  // 로그인/로그아웃으로 토큰이 바뀌면 다시 불러온다
+  const accessToken = useCurrentUser()?.accessToken;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -117,7 +117,7 @@ const JobDetailPage = () => {
           setState({ jobId, detail: null, error });
       });
     return () => controller.abort();
-  }, [jobId]);
+  }, [jobId, accessToken]);
 
   if (!state || state.jobId !== jobId) return <DetailSkeleton />;
 
@@ -153,14 +153,22 @@ const JobDetailPage = () => {
   }
 
   const job = state.detail;
-  const isSaved =
-    bookmarkOverride?.jobId === job.id
-      ? bookmarkOverride.bookmarked
-      : job.bookmarked;
-  const bookmarkCount = Math.max(
-    0,
-    job.bookmarkCount + (isSaved === job.bookmarked ? 0 : isSaved ? 1 : -1)
-  );
+
+  const toggleBookmark = async () => {
+    if (bookmarkPending) return;
+    setBookmarkPending(true);
+    try {
+      const { bookmarked, bookmarkCount } = await setJobPostingBookmark(
+        job.id,
+        !job.bookmarked
+      );
+      setState({ jobId, detail: { ...job, bookmarked, bookmarkCount }, error: null });
+    } catch {
+      // 실패하면 화면 상태를 그대로 둔다
+    } finally {
+      setBookmarkPending(false);
+    }
+  };
 
   return (
     <div className="relative flex items-start gap-[30px] pb-6">
@@ -168,11 +176,9 @@ const JobDetailPage = () => {
 
       <aside className={`${PANEL} relative flex w-90 shrink-0 flex-col px-5.5 py-6`}>
         <BookmarkButton
-          count={bookmarkCount}
-          isBookmarked={isSaved}
-          onClick={() =>
-            setBookmarkOverride({ jobId: job.id, bookmarked: !isSaved })
-          }
+          count={job.bookmarkCount}
+          isBookmarked={job.bookmarked}
+          onClick={toggleBookmark}
           className="absolute top-[-1px] right-5.5"
         />
         <div className="border-b border-[#f1f5f9] pr-10 pb-3.5">
