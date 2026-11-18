@@ -40,10 +40,23 @@ export type LanguageExamRecord = {
 };
 export type JobSearchData = PagedResult<JobSearchRecord, "jobs">;
 export type MajorSearchData = PagedResult<MajorSearchRecord, "majors">;
-export type CertificationSearchData = PagedResult<CertificationSearchRecord, "certifications">;
-export type LanguageExamSearchData = { languageExams: LanguageExamRecord[]; totalCount: number };
-export type ResidentialAreasData = { residentialAreas: { code: string; name: string }[] };
+export type CertificationSearchData = PagedResult<
+  CertificationSearchRecord,
+  "certifications"
+>;
+export type LanguageExamSearchData = {
+  languageExams: LanguageExamRecord[];
+  totalCount: number;
+};
+export type ResidentialAreasData = {
+  residentialAreas: { code: string; name: string }[];
+};
 
-/** 명세의 직무 API만 status형 응답. 공통 success/code 래퍼로 잘못 가정하지 않음. */
-export type JobSearchResponse = { status: number; message: string; data: JobSearchData };
-export type StandardSearchResponse<T> = { success: boolean; code: string; message: string; data: T };
+/** 공통 success/code 래퍼로 잘못 가정하지 않음. */
+export type JobSearchResponse = StandardSearchResponse<JobSearchData>;
+export type StandardSearchResponse<T> = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: T;
+};
