@@ -5,7 +5,7 @@ import {
   fromLanguageExam,
   type SearchItem,
   type SearchKind,
-} from "@/mocks/specSearch";
+} from "@/constants/specSearch";
 import type {
   JobSearchData,
   MajorSearchData,
