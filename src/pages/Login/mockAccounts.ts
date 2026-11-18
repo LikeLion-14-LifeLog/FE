@@ -18,9 +18,6 @@ const readAccounts = (): Accounts => {
   }
 };
 
-export const isRegistered = (email: string) =>
-  normalize(email) in readAccounts();
-
 export const saveAccount = (email: string, nickname: string): boolean => {
   const key = normalize(email);
   try {

@@ -13,7 +13,10 @@ import {
   isValidPassword,
   type LoginState,
 } from "./validation";
-import { isRegistered, saveAccount } from "./mockAccounts";
+import { saveAccount } from "./mockAccounts";
+import { signup } from "@/apis/auth";
+import { toApiError } from "@/apis/client";
+import { TERM_IDS } from "@/constants/terms";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -26,6 +29,9 @@ const SignupPage = () => {
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  /** 서버에서 409(이미 가입된 이메일)를 받은 이메일 */
+  const [duplicatedEmail, setDuplicatedEmail] = useState<string>();
 
   const nicknameValid = nickname.trim().length >= 2;
   const passwordMatch =
@@ -35,7 +41,7 @@ const SignupPage = () => {
     nickname: !nicknameValid ? MESSAGES.nicknameRequired : undefined,
     email: !isValidEmail(email)
       ? MESSAGES.emailInvalid
-      : isRegistered(email)
+      : duplicatedEmail === email.trim().toLowerCase()
         ? MESSAGES.emailAlreadyRegistered
         : undefined,
     password: !isValidPassword(password) ? MESSAGES.passwordInvalid : undefined,
@@ -45,17 +51,44 @@ const SignupPage = () => {
   const show = (message?: string) => (submitted ? message : undefined);
   const termsError = show(errors.terms);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     setSubmitted(true);
     setSaveError(undefined);
     if (Object.values(errors).some(Boolean)) return;
 
-    // TODO: 회원가입 API 연동 (agreeMarketing 포함)
-    if (!saveAccount(email, nickname.trim())) {
-      setSaveError(MESSAGES.signupSaveFailed);
+    setLoading(true);
+    try {
+      await signup({
+        email: email.trim(),
+        password,
+        passwordConfirm,
+        agreedTermIds: [
+          ...TERM_IDS.required,
+          ...(agreeMarketing ? [TERM_IDS.marketing] : []),
+        ],
+      });
+    } catch (error) {
+      const { status, message } = toApiError(error);
+      if (status === 409) {
+        setDuplicatedEmail(email.trim().toLowerCase());
+      } else if (status === 400) {
+        setSaveError(message ?? MESSAGES.signupInvalidRequest);
+      } else if (status === undefined) {
+        setSaveError(MESSAGES.networkError);
+      } else {
+        setSaveError(MESSAGES.signupFailed);
+      }
       return;
+    } finally {
+      setLoading(false);
     }
+
+    // 닉네임은 회원가입 API에 없으므로 로그인 API 연동 전까지 로컬에 보관
+    // TODO: 로그인 API 연동 시 mockAccounts 제거
+    saveAccount(email, nickname.trim());
+
     // 가입 후에는 로그인 화면으로 보내 직접 로그인하게 한다 (이메일은 미리 채움)
     const state: LoginState = { email: email.trim(), fromSignup: true };
     navigate(withRedirect("/login", redirect), { replace: true, state });
@@ -163,7 +196,9 @@ const SignupPage = () => {
             {saveError}
           </p>
         )}
-        <PrimaryButton type="submit">회원가입 완료</PrimaryButton>
+        <PrimaryButton type="submit" disabled={loading}>
+          {loading ? "가입 처리 중..." : "회원가입 완료"}
+        </PrimaryButton>
 
         <p className="mt-4 flex h-[34.5px] items-start justify-center gap-[25px] pt-[15px] text-[13px] leading-[19.5px]">
           <span className="text-[#64748b]">

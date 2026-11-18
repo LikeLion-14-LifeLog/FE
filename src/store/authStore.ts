@@ -1,13 +1,13 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * 로그인한 사용자 정보 — API 연동 전 임시 구현.
+ * 로그인한 사용자 정보와 JWT Access Token.
  * "로그인 상태 유지"면 localStorage, 아니면 sessionStorage(탭을 닫으면 로그아웃)에 저장한다.
- * TODO: 백엔드 API 연동 시 토큰/세션 기반으로 교체
  */
 export type CurrentUser = {
   nickname: string;
   email: string;
+  accessToken: string;
 };
 
 const STORAGE_KEY = "lifelog:currentUser";
@@ -40,7 +40,12 @@ const read = (getStorage: StorageSelector): CurrentUser | null =>
     getStorage,
     (storage) => {
       const raw = storage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as CurrentUser) : null;
+      if (!raw) return null;
+      const user = JSON.parse(raw) as Partial<CurrentUser>;
+      // 토큰이 없는 예전(Mock) 로그인 정보는 무효 처리
+      return user.accessToken && user.email
+        ? (user as CurrentUser)
+        : null;
     },
     null,
   );
@@ -76,6 +81,9 @@ const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
 };
+
+/** API 요청에 붙일 Access Token (비로그인이면 undefined) */
+export const getAccessToken = () => currentUser?.accessToken;
 
 /** 현재 로그인한 사용자 (없으면 null) */
 export const useCurrentUser = () =>
