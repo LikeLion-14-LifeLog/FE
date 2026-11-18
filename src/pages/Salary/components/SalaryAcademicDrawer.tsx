@@ -60,7 +60,9 @@ export default function SalaryAcademicDrawer({
           location: details.location,
           universityGrade: details.universityGrade?.toString() ?? "",
           universityStandardGrade:
-            details.universityStandardGrade?.toString() ?? "",
+            mockSpecFormOptions.gradeScales.find(
+              (scale) => Number(scale) === details.universityStandardGrade
+            ) ?? "",
           graduatedYearMonth: details.graduatedYearMonth ?? "",
           majorAffiliation: details.majorAffiliation ?? "",
           majorId: details.majorId,
@@ -97,9 +99,8 @@ export default function SalaryAcademicDrawer({
     Number.isFinite(currentGrade) &&
     gradeScale !== null &&
     Number.isFinite(gradeScale) &&
-    Number.isFinite(grade) &&
-    grade > currentGrade &&
-    grade <= gradeScale;
+    isValidGrade(targetGrade, String(gradeScale)) &&
+    grade > currentGrade;
 
   const validMaster =
     master.type === "GRADUATE_SCHOOL_MASTER" &&

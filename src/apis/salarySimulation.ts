@@ -301,6 +301,7 @@ export function validateSalaryAdditions(
       !Number.isFinite(gradeScale) ||
       targetGrade === undefined ||
       !Number.isFinite(targetGrade) ||
+      !/^\d+(\.\d{1,2})?$/.test(String(targetGrade)) ||
       targetGrade <= currentGrade ||
       targetGrade > gradeScale
     ) {
