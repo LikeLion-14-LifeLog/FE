@@ -1,10 +1,32 @@
 import axios from "axios";
+import { getAccessToken, logout } from "@/store/authStore";
 
 /** 공통 API 클라이언트. 서버 응답은 { success, code, message, data } 형태. */
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 10_000,
+});
+
+// 로그인 상태면 Authorization 헤더에 Access Token을 붙인다
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// 토큰을 보낸 요청이 401이면 토큰 만료/무효로 보고 로그아웃한다
+apiClient.interceptors.response.use(undefined, (error) => {
+  if (
+    axios.isAxiosError(error) &&
+    error.response?.status === 401 &&
+    error.config?.headers?.Authorization
+  ) {
+    logout();
+  }
+  return Promise.reject(error);
 });
 
 export type ApiError = {

@@ -10,3 +10,15 @@ export type SignupRequest = {
 export type SignupResponse = {
   memberId: number;
 };
+
+/** POST /api/auth/login 요청 */
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+/** POST /api/auth/login 응답 data */
+export type LoginResponse = {
+  accessToken: string;
+  tokenType: "Bearer";
+};

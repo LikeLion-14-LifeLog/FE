@@ -11,12 +11,13 @@ import SocialButton from "./components/SocialButton";
 import {
   MESSAGES,
   isValidEmail,
-  isValidPassword,
   type LoginState,
   type WelcomeState,
 } from "./validation";
-import { findNickname, isRegistered } from "./mockAccounts";
-import { login } from "@/store/authStore";
+import { findNickname } from "./mockAccounts";
+import { login as saveLogin } from "@/store/authStore";
+import { login } from "@/apis/auth";
+import { toApiError } from "@/apis/client";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -28,29 +29,48 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string>();
 
-  const getEmailError = () => {
-    if (!isValidEmail(email)) return MESSAGES.emailInvalid;
-    if (!isRegistered(email)) return MESSAGES.emailNotRegistered;
-    return undefined;
-  };
-  const emailError = submitted ? getEmailError() : undefined;
+  const emailError =
+    submitted && !isValidEmail(email) ? MESSAGES.emailInvalid : undefined;
+  // 로그인 시에는 형식 대신 입력 여부만 확인 (일치 여부는 서버가 판단)
   const passwordError =
-    submitted && !isValidPassword(password)
-      ? MESSAGES.passwordInvalid
-      : undefined;
+    submitted && !password ? MESSAGES.passwordRequired : undefined;
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     setSubmitted(true);
-    const nickname = findNickname(email);
-    if (!isValidEmail(email) || !nickname || !isValidPassword(password)) {
+    setLoginError(undefined);
+    if (!isValidEmail(email) || !password) return;
+
+    const trimmedEmail = email.trim();
+    setLoading(true);
+    let accessToken: string;
+    try {
+      ({ accessToken } = await login({ email: trimmedEmail, password }));
+    } catch (error) {
+      const { status } = toApiError(error);
+      setLoginError(
+        status === 401
+          ? MESSAGES.loginFailed
+          : status === 403
+            ? MESSAGES.loginForbidden
+            : status === undefined
+              ? MESSAGES.networkError
+              : MESSAGES.serverError,
+      );
       return;
+    } finally {
+      setLoading(false);
     }
 
-    // TODO: 로그인 API 연동 (비밀번호 확인, keepLoggedIn 포함)
-    const state: WelcomeState = { nickname, email: email.trim() };
-    login(state, keepLoggedIn);
+    // 로그인 API는 닉네임을 주지 않으므로 가입 시 로컬에 저장한 닉네임을 쓰고,
+    // 없으면 이메일 앞부분으로 대신한다. TODO: 회원 정보 조회 API 연동 시 교체
+    const nickname = findNickname(trimmedEmail) ?? trimmedEmail.split("@")[0];
+    const state: WelcomeState = { nickname, email: trimmedEmail };
+    saveLogin({ ...state, accessToken }, keepLoggedIn);
     // 환영 페이지를 거친 뒤 원래 가려던 화면(redirect)으로 이어진다
     navigate(withRedirect("/welcome", redirect), { replace: true, state });
   };
@@ -103,7 +123,17 @@ const LoginPage = () => {
           </Link>
         </div>
 
-        <PrimaryButton type="submit">로그인</PrimaryButton>
+        {loginError && (
+          <p
+            role="alert"
+            className="-mt-2 pb-3 text-center text-[12px] leading-[18px] font-semibold text-[#e11d48]"
+          >
+            {loginError}
+          </p>
+        )}
+        <PrimaryButton type="submit" disabled={loading}>
+          {loading ? "로그인 중..." : "로그인"}
+        </PrimaryButton>
 
         <SocialButton
           className="mt-5"
