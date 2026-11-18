@@ -3,7 +3,7 @@ import {
   searchConfig,
   type SearchItem,
   type SearchKind,
-} from "@/mocks/specSearch";
+} from "@/constants/specSearch";
 import { searchSpecItems } from "@/apis/specSearch";
 
 type Props = {
