@@ -1,14 +1,22 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { getSavedSpecProfileMock } from "@/apis/spec";
+import type { SalaryCompanyScale, SalaryTargetSaveData } from "@/types/salaryApi";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
-  getSalaryOptionsMock,
-  getSalarySimulationMock,
+  buildSalarySimulationRequest,
   sameSalaryChanges,
+  validateSalaryAdditions,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
+import { hasCompletedDiagnosis } from "@/mocks/diagnosis";
+import {
+  getSalarySimulationMock,
+  getSalaryTargetSaveMock,
+  salarySimulationRequestMock,
+} from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
 import type {
   SalaryChanges,
@@ -17,12 +25,14 @@ import type {
   SalaryConditionOption,
 } from "@/types/salary";
 import SalaryConditionDrawer from "./components/SalaryConditionDrawer";
+import SalaryAcademicDrawer from "./components/SalaryAcademicDrawer";
+import SalaryExperienceDrawer from "./components/SalaryExperienceDrawer";
 import SalaryOptions from "./components/SalaryOptions";
 
 const changeKeyByField = {
-  EXPERIENCE: "experience",
+  EXPERIENCE: "experiences",
   CERTIFICATE: "addCertificateIds",
-  LANGUAGE: "languageScore",
+  LANGUAGE: "languageScores",
   ACADEMIC: "academic",
 } as const satisfies Record<SalaryConditionField, keyof SalaryChanges>;
 
@@ -31,7 +41,7 @@ const formatManwon = (won: number) =>
 
 function getSelectedOptions(
   { field, options }: SalaryCondition,
-  changes: SalaryChanges,
+  changes: SalaryChanges
 ) {
   if (field === "CERTIFICATE") {
     const selectedIds = new Set(changes.addCertificateIds);
@@ -42,13 +52,48 @@ function getSelectedOptions(
     });
   }
 
+  if (field === "EXPERIENCE") return [];
+
+  if (field === "LANGUAGE") {
+    return (changes.languageScores ?? []).flatMap((score) => {
+      const option = options.find(
+        (item) =>
+          item.changes.languageScores?.[0]?.languageExamId ===
+          score.languageExamId
+      );
+      if (!option) return [];
+      return [
+        {
+          ...option,
+          summary: `${option.label} ${score.scoreNumeric !== null ? `${score.scoreNumeric}점` : (score.scoreGrade ?? "")}`,
+          changes: { languageScores: [score] },
+        },
+      ];
+    });
+  }
+
+  if (field === "ACADEMIC") {
+    return options
+      .filter(
+        (option) => option.changes.academic?.type === changes.academic?.type
+      )
+      .map((option) => ({
+        ...option,
+        summary:
+          changes.academic?.type === "UNIVERSITY"
+            ? `학점 ${changes.academic.universityGrade}로 상향`
+            : option.summary,
+        changes: { academic: changes.academic },
+      }));
+  }
+
   const key = changeKeyByField[field];
   const change = changes[key];
 
   if (change == null) return [];
 
   return options.filter((option) =>
-    sameSalaryChanges(option.changes, { [key]: change }),
+    sameSalaryChanges(option.changes, { [key]: change })
   );
 }
 
@@ -60,7 +105,7 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
       </p>
       <h1 className="mt-2 text-[30px] leading-[37.5px] font-extrabold tracking-[-0.6px] text-text-primary">
         {comparing
-          ? "준비 선택지를 같은 기준으로 비교해보세요"
+          ? "설정한 조건과 AI 추천 선택지를 비교해보세요"
           : "조건을 바꾸면, 연봉은 얼마나 달라질까요?"}
       </h1>
       <p className="mt-2 text-[15.5px] leading-6 text-text-secondary">
@@ -72,17 +117,85 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
   );
 }
 
-function SalarySimulator({ email }: { email: string | undefined }) {
+function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const location = useLocation();
+  const email = useCurrentUser()?.email;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] =
-    useState<"SMB_SOLUTION" | "LARGE">("SMB_SOLUTION");
-  const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(null);
+  const [companyGroup, setCompanyGroup] = useState<Exclude<SalaryCompanyScale, null>>("LARGE");
+  const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
+    null
+  );
   const [changes, setChanges] = useState<SalaryChanges>({});
+  const [comparisonCache, setComparisonCache] = useState<{
+    key: string;
+    data: SalaryTargetSaveData;
+  } | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
 
+  const profile = email ? getSavedSpecProfileMock(email) : null;
   const hasChanges = !sameSalaryChanges(changes, {});
+  const conditionError = hasChanges
+    ? validateSalaryAdditions(changes, profile)
+    : null;
+  const request =
+    !locked &&
+    buildSalarySimulationRequest(
+      changes,
+      companyGroup,
+      salarySimulationRequestMock.baseSpecProfileId,
+      profile?.educations ?? []
+    );
+  const result = request ? getSalarySimulationMock(request) : null;
+  const comparisonKey = request ? JSON.stringify(request) : null;
+  const compareParams = new URLSearchParams(searchParams);
+  compareParams.set("view", "compare");
+
+  const openComparison = async () => {
+    if (locked || comparisonLoading) return;
+
+    if (conditionError) {
+      setComparisonError(conditionError);
+      return;
+    }
+    if (!request || !comparisonKey || !getSalaryTargetSaveMock(request)) {
+      setComparisonError(
+        "현재 선택한 기업군 또는 조건은 Mock 비교를 지원하지 않아요. 실제 API 연동 후 이용할 수 있습니다."
+      );
+      return;
+    }
+
+    const showComparison = () =>
+      navigate(
+        { pathname: "/salary", search: `?${compareParams.toString()}` },
+        { state: { fromSalarySimulator: true }, preventScrollReset: true }
+      );
+
+    if (comparisonCache?.key === comparisonKey) {
+      showComparison();
+      return;
+    }
+
+    setComparisonLoading(true);
+    setComparisonError(null);
+    try {
+      const data = await getSalaryTargetSaveMock(request);
+      if (!data) {
+        setComparisonError(
+          "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+        );
+        return;
+      }
+      setComparisonCache({ key: comparisonKey, data });
+      showComparison();
+    } catch {
+      setComparisonError("비교 결과를 불러오지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setComparisonLoading(false);
+    }
+  };
 
   const closeComparison = () => {
     if (location.state?.fromSalarySimulator === true) {
@@ -108,243 +221,425 @@ function SalarySimulator({ email }: { email: string | undefined }) {
       return { ...next, ...applied };
     });
 
+    setComparisonError(null);
     setOpenCondition(null);
   };
 
-  if (isComparing) {
-    const comparison = getSalaryOptionsMock(email);
-    const currentOption = comparison.options.find((option) =>
-      sameSalaryChanges(option.changes, changes),
-    );
+  const applyExperiences = (experiences: SalaryChanges["experiences"]) => {
+    setChanges((previous) => {
+      const next = { ...previous };
+      delete next.experience;
+      delete next.experiences;
+      return experiences?.length ? { ...next, experiences } : next;
+    });
+    setComparisonError(null);
+    setOpenCondition(null);
+  };
+
+  if (isComparing && !locked) {
+    const comparison =
+      comparisonCache?.key === comparisonKey ? comparisonCache.data : null;
 
     return (
       <>
         <SalaryTitle comparing />
-        <SalaryOptions
-          comparison={comparison}
-          currentOptionKey={currentOption?.optionKey}
-          onBack={closeComparison}
-          onApply={(option) => {
-            setChanges(option.changes);
-            closeComparison();
-          }}
-        />
+        {comparison ? (
+          <SalaryOptions comparison={comparison} onBack={closeComparison} />
+        ) : (
+          <div className="rounded-xl border border-border px-6 py-12 text-center">
+            <p role="status" className="text-[14px] text-text-secondary">
+              이전 비교 결과가 없거나 현재 조건의 Mock 비교를 지원하지 않아요.
+            </p>
+            <p className="mt-2 text-[12px] text-text-muted">
+              비교 결과는 화면에 임시 저장됩니다. 조건을 다시 설정해 주세요.
+            </p>
+            <button
+              type="button"
+              onClick={closeComparison}
+              className="mt-6 cursor-pointer text-[13px] font-bold text-brand-strong"
+            >
+              조건 변경으로 돌아가기
+            </button>
+          </div>
+        )}
       </>
     );
   }
 
-  const compareParams = new URLSearchParams(searchParams);
-  compareParams.set("view", "compare");
-
-  const result = getSalarySimulationMock(changes);
-  const changedSalary = result.startingSalary;
-  const startingSalary = result.base.find(
-    ({ annual }) => annual === 0,
-  )?.incomeExpected;
-  const chartData = result.base.map(({ annual, incomeExpected }) => ({
-    year: annual,
-    salary: incomeExpected,
-  }));
-  const comparisonData = changedSalary
-    ? [{ year: 0, salary: changedSalary.incomeExpected }]
+  const baselineRequest = !result
+    ? buildSalarySimulationRequest(
+        {},
+        companyGroup,
+        salarySimulationRequestMock.baseSpecProfileId,
+        profile?.educations ?? []
+      )
     : null;
-
-  let previewMessage = "이 조건 조합에 해당하는 변경 후 Mock 예시가 없어요.";
-
-  if (changedSalary) {
-    previewMessage = changedSalary.combined
-      ? "조건별 초봉 상승폭을 단순 합산한 Mock 예시입니다."
-      : "변경 후 수치는 첫 취업 초봉 예시만 제공돼요.";
-  }
+  const baseline = baselineRequest
+    ? getSalarySimulationMock(baselineRequest)
+    : null;
+  const baseResults = (result ?? baseline)?.base.salaryResults ?? [];
+  const simulatedResults = result?.simulated?.salaryResults ?? [];
+  const startingSalary = baseResults.find(
+    ({ annual }) => annual === 0
+  )?.annualIncomeExpected;
+  const changedSalary = simulatedResults.find(
+    ({ annual }) => annual === 0
+  )?.annualIncomeExpected;
+  const salaryDelta =
+    startingSalary !== undefined && changedSalary !== undefined
+      ? changedSalary - startingSalary
+      : null;
+  const chartData = baseResults.map((item) => ({
+    year: item.annual,
+    salary: item.annualIncomeExpected,
+    lower: item.annualIncomeMin,
+    upper: item.annualIncomeMax,
+  }));
+  const comparisonData = result?.simulated
+    ? simulatedResults
+        .filter(({ annual }) => annual === 0)
+        .map(({ annual, annualIncomeExpected }) => ({
+          year: annual,
+          salary: annualIncomeExpected,
+        }))
+    : null;
+  const previewMessage =
+    conditionError ??
+    (!request && changes.academic?.type === "UNIVERSITY"
+      ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
+      : !result
+        ? companyGroup !== "LARGE"
+          ? "현재 기업군은 예측 Mock을 지원하지 않아요. 실제 연봉 예측은 API 연동 후 제공됩니다."
+          : "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
+        : result.simulated
+          ? [
+              result.preparationPeriod,
+              result.estimatedCost,
+              result.decisionCriteria,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요.");
 
   return (
     <div className="w-full lg:-mb-8">
       <SalaryTitle comparing={false} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-text-primary pt-5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="relative -top-px text-[12px] font-bold text-brand-strong">
-            비교 기준
-          </span>
-          <label htmlFor="salary-company" className="text-[14px] font-bold">
-            어떤 기업군을 목표로 하나요?
-          </label>
-
-          <div className="relative">
-            <select
-              id="salary-company"
-              value={companyGroup}
-              onChange={(event) =>
-                setCompanyGroup(
-                  event.target.value === "LARGE" ? "LARGE" : "SMB_SOLUTION",
-                )
-              }
-              className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
-            >
-              <option value="SMB_SOLUTION">중견 IT 서비스</option>
-              <option value="LARGE">대기업</option>
-            </select>
-            <img
-              src={chevronDown}
-              alt=""
-              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
-            />
-          </div>
-        </div>
-
-        <p className="rounded-full bg-brand-soft px-3.5 py-2 text-[12px] text-brand-strong">
-          비교한 조건은 내 스펙에 저장되지 않아요
-        </p>
-      </div>
-
-      <div className="mt-[38px] grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,410px)] lg:gap-8">
-        <section
-          aria-labelledby="salary-projection-title"
-          className="min-w-0 rounded-[18px] border border-border px-5 py-7 sm:px-[34px]"
+      <div className="relative">
+        <div
+          inert={locked}
+          className={
+            locked ? "pointer-events-none select-none opacity-35" : undefined
+          }
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="salary-projection-title" className="text-[15px] font-bold">
-              조건 변경에 따른 예상 변화
-            </h2>
-            <span className="text-[12px] text-text-secondary">
-              세전 기본급 기준
-            </span>
-          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-text-primary pt-5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="relative -top-px text-[12px] font-bold text-brand-strong">
+                비교 기준
+              </span>
+              <label htmlFor="salary-company" className="text-[14px] font-bold">
+                어떤 기업군을 목표로 하나요?
+              </label>
 
-          <div className="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-4 pb-6 sm:gap-8">
-            <div>
-              <p className="text-[13px] text-text-secondary">현재 예상 초봉</p>
-              <p className="mt-2 text-[26px] font-bold tracking-[-0.04em] sm:text-[34px]">
-                {startingSalary === undefined ? "–" : formatManwon(startingSalary)}
-                {startingSalary !== undefined && (
-                  <span className="ml-0.5 text-[13px] tracking-normal">만 원</span>
-                )}
-              </p>
-            </div>
-
-            <span aria-hidden="true" className="pb-1 text-[17px]">→</span>
-
-            <div>
-              <p className="text-[13px] text-text-secondary">
-                변경 후 예상 초봉
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
-                  {changedSalary ? formatManwon(changedSalary.incomeExpected) : "–"}
-                  {changedSalary && <span className="ml-0.5 text-[13px]">만 원</span>}
-                </p>
-                {changedSalary && (
-                  <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
-                    {changedSalary.delta > 0 ? "+" : ""}
-                    {formatManwon(changedSalary.delta)}만 원
-                  </span>
-                )}
+              <div className="relative">
+                <select
+                  id="salary-company"
+                  disabled={comparisonLoading}
+                  value={companyGroup}
+                  onChange={(event) => {
+                    setCompanyGroup(
+                      event.target.value as Exclude<SalaryCompanyScale, null>
+                    );
+                    setComparisonError(null);
+                  }}
+                  className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
+                >
+                  <option value="STARTUP">스타트업</option>
+                  <option value="SMALL">소기업</option>
+                  <option value="MIDDLE">중기업</option>
+                  <option value="LARGE">대기업</option>
+                </select>
+                <img
+                  src={chevronDown}
+                  alt=""
+                  className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
+                />
               </div>
             </div>
-          </div>
 
-          <div className="border-t border-border pt-5 pb-3">
-            <div className="mx-auto max-w-[920px]">
-              <SalaryChart data={chartData} comparisonData={comparisonData} wide />
-            </div>
-          </div>
-
-          <div className="border-t border-border pt-4 sm:min-h-[63px]">
-            <p className="text-[12px] text-text-secondary">해석할 때 유의할 점</p>
-            <p role="status" className="mt-1 text-[13px] leading-5 text-text-secondary">
-              {hasChanges
-                ? previewMessage
-                : `기업군 공통 Mock 예시 연봉입니다. ${result.notice}`}
+            <p className="rounded-full bg-brand-soft px-3.5 py-2 text-[12px] text-brand-strong">
+              비교한 조건은 내 스펙에 저장되지 않아요
             </p>
           </div>
-        </section>
 
-        <section
-          aria-labelledby="salary-conditions-title"
-          className="rounded-[18px] border border-border px-6 py-[26px]"
-        >
-          <div className="flex items-center justify-between gap-3 border-b-2 border-border pb-5">
-            <h2 id="salary-conditions-title" className="text-[17px] font-medium">
-              변경할 조건 선택
-            </h2>
-            <button
-              type="button"
-              disabled={!hasChanges}
-              onClick={() => setChanges({})}
-              className="text-[12px] text-text-secondary enabled:cursor-pointer enabled:hover:text-brand-strong disabled:text-text-disabled"
+          <div className="mt-[38px] grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,410px)] lg:gap-8">
+            <section
+              aria-labelledby="salary-projection-title"
+              className="min-w-0 rounded-[18px] border border-border px-5 py-7 sm:px-[34px]"
             >
-              초기화
-            </button>
-          </div>
-
-          {salaryConditions.map((condition) => {
-            const selected = getSelectedOptions(condition, changes);
-            const summary = selected
-              .map((option) => option.summary ?? option.label)
-              .join(", ");
-            const hasFieldChange = !sameSalaryChanges(
-              { [changeKeyByField[condition.field]]: changes[changeKeyByField[condition.field]] },
-              {},
-            );
-
-            return (
-              <button
-                key={condition.field}
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => setOpenCondition(condition)}
-                className="group flex min-h-[88px] w-full cursor-pointer items-center justify-between gap-3 border-b border-border py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-              >
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-bold transition-colors duration-150 group-hover:text-brand-strong group-focus-visible:text-brand-strong">
-                    {condition.label}
-                  </span>
-                  <span className="mt-2 block break-words text-[13px] text-text-secondary">
-                    {summary ||
-                      (hasFieldChange ? "변경 조건 적용됨" : condition.defaultSummary)}
-                  </span>
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="shrink-0 text-[16px] text-text-secondary transition-[color,translate] duration-150 group-hover:text-brand-strong group-focus-visible:text-brand-strong motion-safe:group-hover:translate-x-1 motion-safe:group-focus-visible:translate-x-1"
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2
+                  id="salary-projection-title"
+                  className="text-[15px] font-bold"
                 >
+                  조건 변경에 따른 예상 변화
+                </h2>
+                <span className="text-[12px] text-text-secondary">
+                  AI 예측 연봉
+                </span>
+              </div>
+
+              <div className="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-4 pb-6 sm:gap-8">
+                <div>
+                  <p className="text-[13px] text-text-secondary">
+                    현재 예상 초봉
+                  </p>
+                  <p className="mt-2 text-[26px] font-bold tracking-[-0.04em] sm:text-[34px]">
+                    {startingSalary === undefined
+                      ? "–"
+                      : formatManwon(startingSalary)}
+                    {startingSalary !== undefined && (
+                      <span className="ml-0.5 text-[13px] tracking-normal">
+                        만 원
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <span aria-hidden="true" className="pb-1 text-[17px]">
                   →
                 </span>
-              </button>
-            );
-          })}
 
-          <Link
-            to={{ pathname: "/salary", search: `?${compareParams.toString()}` }}
-            state={{ fromSalarySimulator: true }}
-            preventScrollReset
-            className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
-          >
-            준비 선택지 한눈에 비교 <span aria-hidden="true">→</span>
-          </Link>
-        </section>
+                <div>
+                  <p className="text-[13px] text-text-secondary">
+                    변경 후 예상 초봉
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
+                      {changedSalary === undefined
+                        ? "–"
+                        : formatManwon(changedSalary)}
+                      {changedSalary !== undefined && (
+                        <span className="ml-0.5 text-[13px]">만 원</span>
+                      )}
+                    </p>
+                    {salaryDelta !== null && (
+                      <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
+                        {salaryDelta > 0 ? "+" : ""}
+                        {formatManwon(salaryDelta)}만 원
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-5 pb-3">
+                <div className="mx-auto max-w-[920px]">
+                  <SalaryChart
+                    data={chartData}
+                    comparisonData={comparisonData}
+                    wide
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-4 sm:min-h-[63px]">
+                <p className="text-[12px] text-text-secondary">
+                  해석할 때 유의할 점
+                </p>
+                <p
+                  role="status"
+                  className="mt-1 text-[13px] leading-5 text-text-secondary"
+                >
+                  {previewMessage}
+                </p>
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="salary-conditions-title"
+              className="rounded-[18px] border border-border px-6 py-[26px]"
+            >
+              <div className="flex items-center justify-between gap-3 border-b-2 border-border pb-5">
+                <h2
+                  id="salary-conditions-title"
+                  className="text-[17px] font-medium"
+                >
+                  변경할 조건 선택
+                </h2>
+                <button
+                  type="button"
+                  disabled={!hasChanges || comparisonLoading}
+                  onClick={() => {
+                    setChanges({});
+                    setComparisonError(null);
+                  }}
+                  className="text-[12px] text-text-secondary enabled:cursor-pointer enabled:hover:text-brand-strong disabled:text-text-disabled"
+                >
+                  초기화
+                </button>
+              </div>
+
+              {salaryConditions.map((condition) => {
+                const selected = getSelectedOptions(condition, changes);
+                const summary =
+                  condition.field === "EXPERIENCE"
+                    ? (changes.experiences
+                        ?.map((item) => item.title)
+                        .join(", ") ?? "")
+                    : selected
+                        .map((option) => option.summary ?? option.label)
+                        .join(", ");
+                const hasFieldChange =
+                  condition.field === "EXPERIENCE"
+                    ? !!changes.experiences?.length
+                    : !sameSalaryChanges(
+                        {
+                          [changeKeyByField[condition.field]]:
+                            changes[changeKeyByField[condition.field]],
+                        },
+                        {}
+                      );
+
+                return (
+                  <button
+                    key={condition.field}
+                    type="button"
+                    aria-haspopup="dialog"
+                    disabled={comparisonLoading}
+                    onClick={() => setOpenCondition(condition)}
+                    className="group flex min-h-[88px] w-full cursor-pointer items-center justify-between gap-3 border-b border-border py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-bold transition-colors duration-150 group-hover:text-brand-strong group-focus-visible:text-brand-strong">
+                        {condition.label}
+                      </span>
+                      <span className="mt-2 block break-words text-[13px] text-text-secondary">
+                        {summary ||
+                          (hasFieldChange
+                            ? "변경 조건 적용됨"
+                            : condition.defaultSummary)}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-[16px] text-text-secondary transition-[color,translate] duration-150 group-hover:text-brand-strong group-focus-visible:text-brand-strong motion-safe:group-hover:translate-x-1 motion-safe:group-focus-visible:translate-x-1"
+                    >
+                      →
+                    </span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={openComparison}
+                disabled={!hasChanges || !!conditionError || comparisonLoading}
+                className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 enabled:cursor-pointer enabled:hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {comparisonLoading
+                  ? "비교 결과 불러오는 중..."
+                  : "설정한 조건과 AI 추천 선택지 비교"}
+                <span aria-hidden="true">→</span>
+              </button>
+              {conditionError && (
+                <p role="alert" className="pb-4 text-[12px] text-red-500">
+                  {conditionError}
+                </p>
+              )}
+              {comparisonError && (
+                <p role="alert" className="pb-4 text-[12px] text-red-500">
+                  {comparisonError}
+                </p>
+              )}
+            </section>
+          </div>
+        </div>
+        {locked && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center px-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
+                <svg
+                  width="27"
+                  height="27"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="5" y="10" width="14" height="11" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+              </div>
+              <h2 className="mt-5 text-[20px] font-bold text-text-primary">
+                스펙 진단이 먼저 필요해요
+              </h2>
+              <p className="mt-2 text-[13px] text-text-secondary">
+                진단을 완료하면 조건별 예상 연봉을 비교할 수 있어요.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/spec")}
+                className="mt-6 min-h-11 cursor-pointer rounded-lg bg-brand px-6 text-[13px] font-bold text-white hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+              >
+                스펙 진단하러 가기
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {openCondition && (
+      {openCondition?.field === "ACADEMIC" ? (
+        <SalaryAcademicDrawer
+          condition={openCondition}
+          selected={getSelectedOptions(openCondition, changes)}
+          currentBachelor={
+            profile?.educations.find((item) => item.type === "UNIVERSITY") ??
+            null
+          }
+          bachelorCount={
+            profile?.educations.filter((item) => item.type === "UNIVERSITY")
+              .length ?? 0
+          }
+          hasGraduateDegree={
+            !!profile?.educations.some(
+              (item) =>
+                item.type === "GRADUATE_SCHOOL_MASTER" ||
+                item.type === "GRADUATE_SCHOOL_DOCTORAL"
+            )
+          }
+          onClose={() => setOpenCondition(null)}
+          onApply={applyCondition}
+        />
+      ) : openCondition?.field === "EXPERIENCE" ? (
+        <SalaryExperienceDrawer
+          selected={changes.experiences ?? []}
+          onClose={() => setOpenCondition(null)}
+          onApply={applyExperiences}
+        />
+      ) : openCondition ? (
         <SalaryConditionDrawer
           key={openCondition.field}
           condition={openCondition}
           selected={getSelectedOptions(openCondition, changes)}
+          currentLanguages={profile?.languageScores ?? []}
           onClose={() => setOpenCondition(null)}
           onApply={applyCondition}
         />
-      )}
+      ) : null}
     </div>
   );
 }
 
 export default function SalaryPage() {
   const email = useCurrentUser()?.email;
-
   return (
     <SalarySimulator
-      key={email === undefined ? "guest" : `user:${email}`}
-      email={email}
+      key={`user:${email}`}
+      locked={!hasCompletedDiagnosis(email)}
     />
   );
 }
