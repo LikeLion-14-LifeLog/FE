@@ -2,7 +2,7 @@ import {
   fromJob,
   fromMajor,
   fromCertificate,
-  mockSearchItems,
+  fromLanguageExam,
   type SearchItem,
   type SearchKind,
 } from "@/mocks/specSearch";
@@ -10,6 +10,7 @@ import type {
   JobSearchData,
   MajorSearchData,
   CertificationSearchData,
+  LanguageExamSearchData,
   StandardSearchResponse,
 } from "@/types/spec/search";
 
@@ -43,7 +44,9 @@ async function fetchSearchData<T>(
     throw new Error("검색에 필요한 인증 토큰이 없습니다.");
   }
 
-  const response = await fetch(`${baseUrl}${path}?${params}`, {
+  const query = params.toString();
+  const url = `${baseUrl}${path}${query ? `?${query}` : ""}`;
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -60,6 +63,37 @@ async function fetchSearchData<T>(
   }
 
   return body.data;
+}
+
+export async function getLanguageExams(
+  keyword = "",
+  languageType = "all"
+): Promise<LanguageExamSearchData> {
+  const params = new URLSearchParams();
+  const query = keyword.trim();
+
+  if (query) {
+    params.set("keyword", query);
+  }
+
+  if (languageType !== "all") {
+    params.set("languageType", languageType);
+  }
+
+  const data = await fetchSearchData<LanguageExamSearchData>(
+    "/api/language-exams",
+    params
+  );
+
+  if (
+    !Array.isArray(data.languageExams) ||
+    !Number.isSafeInteger(data.totalCount) ||
+    data.totalCount < 0
+  ) {
+    throw new Error("어학시험 목록 응답이 올바르지 않습니다.");
+  }
+
+  return data;
 }
 
 function toSearchPage<T>(
@@ -95,24 +129,13 @@ export async function searchSpecItems({
 
   const query = keyword.trim();
 
-  // 어학 목록은 다음 API 연동 단계에서 교체한다.
   if (kind === "language") {
-    const filtered = mockSearchItems.language.filter((item) => {
-      const matchesKeyword = item.name
-        .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase());
-      const matchesCategory = category === "all" || item.tab === category;
-
-      return matchesKeyword && matchesCategory;
-    });
-
-    const size = 5;
-    const start = (page - 1) * size;
+    const data = await getLanguageExams(query, category);
 
     return {
-      items: filtered.slice(start, start + size),
-      total: filtered.length,
-      hasNext: start + size < filtered.length,
+      items: data.languageExams.map(fromLanguageExam),
+      total: data.totalCount,
+      hasNext: false,
     };
   }
 
