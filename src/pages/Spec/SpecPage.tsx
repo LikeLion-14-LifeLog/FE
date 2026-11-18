@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getSpecFormOptions,
-  getSavedSpecProfileMock,
+  getSpecProfile,
   saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
@@ -24,7 +24,7 @@ import {
 
 const upsert = <T extends { localId: number }>(items: T[], value: T): T[] =>
   items.some((item) => item.localId === value.localId)
-    ? items.map((item) => item.localId === value.localId ? value : item)
+    ? items.map((item) => (item.localId === value.localId ? value : item))
     : [...items, value];
 
 const emptyProfile = (): SpecProfileDraft => ({
@@ -37,9 +37,7 @@ const emptyProfile = (): SpecProfileDraft => ({
 
 function SpecFormPage({ email }: { email: string | undefined }) {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<SpecProfileDraft>(() =>
-    email ? getSavedSpecProfileMock(email) ?? emptyProfile() : emptyProfile(),
-  );
+  const [profile, setProfile] = useState<SpecProfileDraft>(emptyProfile);
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,17 +49,32 @@ function SpecFormPage({ email }: { email: string | undefined }) {
   useEffect(() => {
     let active = true;
 
-    // 💡 로컬 스토리지에서 토큰을 꺼내어 getSpecFormOptions의 인자로 전달합니다.
-    const accessToken = localStorage.getItem("accessToken") ?? "";
+    const loadProfile = async () => {
+      try {
+        const accessToken = localStorage.getItem("accessToken")?.trim();
 
-    getSpecFormOptions(accessToken)
-      .then((data) => {
-        if (active) setOptions(data);
-      })
-      .catch((err) => {
-        console.error("거주 지역 옵션 로드 실패:", err);
-        if (active) setOptionsError(true);
-      });
+        if (!accessToken) {
+          throw new Error("스펙 조회에 필요한 인증 토큰이 없습니다.");
+        }
+
+        const [formOptions, savedProfile] = await Promise.all([
+          getSpecFormOptions(accessToken),
+          getSpecProfile(accessToken),
+        ]);
+
+        if (!active) return;
+
+        setProfile(savedProfile);
+        setOptions(formOptions);
+      } catch (error: unknown) {
+        if (!active) return;
+
+        console.error("스펙 등록 정보 조회 실패", error);
+        setOptionsError(true);
+      }
+    };
+
+    void loadProfile();
 
     return () => {
       active = false;
@@ -151,8 +164,9 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     }
   };
 
-  if (optionsError) return <p role="alert">선택 항목을 불러오지 못했습니다.</p>;
-  if (!options) return <p role="status">선택 항목을 불러오는 중입니다.</p>;
+  if (optionsError)
+    return <p role="alert">스펙 등록 정보를 불러오지 못했습니다.</p>;
+  if (!options) return <p role="status">스펙 등록 정보를 불러오는 중입니다.</p>;
 
   return (
     <div className="w-full pb-28">
@@ -168,9 +182,13 @@ function SpecFormPage({ email }: { email: string | undefined }) {
             educations={educations}
             options={options}
             onEditingChange={setEditingEducation}
-            onSave={(value) => update({ educations: upsert(educations, value) })}
+            onSave={(value) =>
+              update({ educations: upsert(educations, value) })
+            }
             onDelete={(id) =>
-              update({ educations: educations.filter((item) => item.localId !== id) })
+              update({
+                educations: educations.filter((item) => item.localId !== id),
+              })
             }
           />
           <QualificationSection
@@ -184,19 +202,31 @@ function SpecFormPage({ email }: { email: string | undefined }) {
               update({ languageScores: upsert(languageScores, value) })
             }
             onDeleteCertificate={(id) =>
-              update({ certificates: certificates.filter((item) => item.localId !== id) })
+              update({
+                certificates: certificates.filter(
+                  (item) => item.localId !== id
+                ),
+              })
             }
             onDeleteLanguage={(id) =>
-              update({ languageScores: languageScores.filter((item) => item.localId !== id) })
+              update({
+                languageScores: languageScores.filter(
+                  (item) => item.localId !== id
+                ),
+              })
             }
           />
         </div>
         <ExperienceSection
           experiences={experiences}
           onEditingChange={setEditingExperience}
-          onSave={(value) => update({ experiences: upsert(experiences, value) })}
+          onSave={(value) =>
+            update({ experiences: upsert(experiences, value) })
+          }
           onDelete={(id) =>
-            update({ experiences: experiences.filter((item) => item.localId !== id) })
+            update({
+              experiences: experiences.filter((item) => item.localId !== id),
+            })
           }
         />
       </div>
