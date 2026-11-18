@@ -88,7 +88,7 @@ export default function ExperienceForm({
 
         <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
           <span className="text-[12px] font-medium text-text-primary">
-            활동 기간
+            활동 기간{targetMode && " (선택)"}
           </span>
           <div className="flex items-center gap-2">
             <input

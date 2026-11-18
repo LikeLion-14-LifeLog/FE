@@ -3,6 +3,8 @@ import type {
   SalarySimulationData,
   SalarySimulationResponse,
   SalaryTargetSaveResponse,
+  SalaryTargetSaveRequest,
+  SalaryTargetSaveData,
   SalaryTargetResponse,
 } from "@/types/salaryApi";
 
@@ -235,5 +237,14 @@ export function getSalarySimulationMock(
     );
   })
     ? salarySimulationResponseMock.data
+    : null;
+}
+
+// 목표 저장 Mock은 명세의 단일 예시 요청에만 대응한다.
+export function getSalaryTargetSaveMock(
+  request: SalaryTargetSaveRequest
+): SalaryTargetSaveData | null {
+  return getSalarySimulationMock(request)?.simulated
+    ? salaryTargetSaveResponseMock.data
     : null;
 }

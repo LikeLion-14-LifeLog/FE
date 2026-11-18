@@ -10,10 +10,7 @@ export type SalaryAcademicAbility = {
     | "GRADUATE_SCHOOL_MASTER"
     | "GRADUATE_SCHOOL_DOCTORAL";
   status:
-    | "ATTENDING"
-    | "LEAVE_FROM_SCHOOL"
-    | "GRADUATE_POSTPONED"
-    | "GRADUATED";
+    "ATTENDING" | "LEAVE_FROM_SCHOOL" | "GRADUATE_POSTPONED" | "GRADUATED";
   location:
     | "SEOUL"
     | "BUSAN"
@@ -61,15 +58,9 @@ export type SalaryLanguageScore = {
 };
 
 export type SalaryExperience = {
-  type:
-    | "INTERNSHIP"
-    | "PROJECT"
-    | "CONTEST"
-    | "PRACTICUM"
-    | "CLUB"
-    | "OTHER";
+  type: "INTERNSHIP" | "PROJECT" | "CONTEST" | "PRACTICUM" | "CLUB" | "OTHER";
   title: string;
-  startedYearMonth: string;
+  startedYearMonth: string | null;
   endedYearMonth: string | null;
   description: string | null;
   awarded: boolean;

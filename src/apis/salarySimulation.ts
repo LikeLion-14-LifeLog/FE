@@ -1,5 +1,6 @@
 import type { SalaryChanges, SalaryConditionOption } from "@/types/salary";
 import type {
+  SalaryApiChanges,
   SalaryCompanyScale,
   SalarySimulationRequest,
 } from "@/types/salaryApi";
@@ -50,20 +51,34 @@ export function buildSalarySimulationRequest(
   companyGroupScale: SalaryCompanyScale,
   baseSpecProfileId: number
 ): SalarySimulationRequest | null {
-  if (
-    changes.experience ||
-    changes.addCertificateIds?.length ||
-    changes.languageScore ||
-    changes.academic
-  ) {
-    return null;
+  // 기존 학력 선택지는 필수 API 필드가 부족하므로 임의로 채우지 않는다.
+  if (changes.experience || changes.academic) return null;
+
+  const apiChanges: SalaryApiChanges = {};
+
+  if (changes.experiences?.length) {
+    apiChanges.experiences = changes.experiences;
+  }
+
+  if (changes.addCertificateIds?.length) {
+    apiChanges.certificates = [...new Set(changes.addCertificateIds)]
+      .sort((a, b) => a - b)
+      .map((certificateId) => ({ certificateId, acquiredYearMonth: null }));
+  }
+
+  if (changes.languageScore) {
+    apiChanges.languageExamScores = [
+      {
+        ...changes.languageScore,
+        acquiredYearMonth: null,
+        expiresYearMonth: null,
+      },
+    ];
   }
 
   return {
     baseSpecProfileId,
     companyGroupScale,
-    changes: changes.experiences?.length
-      ? { experiences: changes.experiences }
-      : null,
+    changes: Object.keys(apiChanges).length ? apiChanges : null,
   };
 }
