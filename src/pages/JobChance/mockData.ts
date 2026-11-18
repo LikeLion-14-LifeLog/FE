@@ -4,6 +4,7 @@ import type {
   JobDetail,
   JobRole,
   JobPosting,
+  JobRegion,
   JobSort,
 } from "@/types/jobs";
 
@@ -48,29 +49,27 @@ export const JOB_ROLES: JobRole[] = [
   { name: "B2B 영업", category: "영업", description: "기업 고객 발굴·계약 관리" },
 ];
 
-export const REGION_FILTERS: { label: string; match: string[] }[] = [
-  { label: "전체", match: [] },
-  { label: "서울 전체", match: ["서울"] },
-  { label: "서울·판교 전체", match: ["서울", "경기 성남시 판교"] },
-  { label: "경기 전체", match: ["경기"] },
-  { label: "인천", match: ["인천"] },
-  { label: "부산", match: ["부산"] },
-  { label: "대구", match: ["대구"] },
-  { label: "대전", match: ["대전"] },
-  { label: "광주", match: ["광주"] },
-];
+export const ALL_REGION = "ALL";
+export type RegionFilter = JobRegion | typeof ALL_REGION;
 
-export const REGION_OPTIONS: DropdownOption[] = REGION_FILTERS.map(
-  ({ label }) => ({ value: label, label })
-);
+export const REGION_OPTIONS: DropdownOption<RegionFilter>[] = [
+  { value: ALL_REGION, label: "전체" },
+  { value: "SEOUL", label: "서울 전체" },
+  { value: "SEOUL_PANGYO", label: "서울·판교 전체" },
+  { value: "GYEONGGI", label: "경기 전체" },
+  { value: "INCHEON", label: "인천" },
+  { value: "BUSAN", label: "부산" },
+  { value: "DAEGU", label: "대구" },
+  { value: "DAEJEON", label: "대전" },
+  { value: "GWANGJU", label: "광주" },
+];
 
 export const SORT_OPTIONS: DropdownOption<JobSort>[] = [
   { value: "latest", label: "최신순", description: "마감 임박 D-day 순" },
   { value: "popular", label: "찜한순", description: "찜이 많은 공고 순" },
 ];
 
-export const DEFAULT_JOB_ROLE = "백엔드/서버";
-export const DEFAULT_REGION = "서울·판교 전체";
+export const DEFAULT_REGION: RegionFilter = "SEOUL_PANGYO";
 
 export const INITIAL_SAVED_IDS = ["17", "20"];
 
