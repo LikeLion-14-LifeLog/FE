@@ -40,25 +40,29 @@ export const salaryConditions: SalaryCondition[] = [
     defaultSummary: "현재 수준 유지",
     options: [
       {
-        optionValue: "TOEIC_930",
-        label: "TOEIC 930점",
+        optionValue: "TOEIC",
+        label: "TOEIC",
         changes: {
-          languageScore: {
-            languageExamId: 1,
-            scoreNumeric: 930,
-            scoreGrade: null,
-          },
+          languageScores: [
+            {
+              languageExamId: 1,
+              scoreNumeric: null,
+              scoreGrade: null,
+            },
+          ],
         },
       },
       {
-        optionValue: "OPIC_IH",
-        label: "OPIc IH",
+        optionValue: "OPIC",
+        label: "OPIc",
         changes: {
-          languageScore: {
-            languageExamId: 7,
-            scoreNumeric: null,
-            scoreGrade: "IH",
-          },
+          languageScores: [
+            {
+              languageExamId: 7,
+              scoreNumeric: null,
+              scoreGrade: null,
+            },
+          ],
         },
       },
     ],
@@ -66,11 +70,11 @@ export const salaryConditions: SalaryCondition[] = [
   {
     field: "ACADEMIC",
     label: "학력",
-    defaultSummary: "진학 안 함",
+    defaultSummary: "현재 학력 유지",
     options: [
       {
         optionValue: "UNIVERSITY_GRADE",
-        label: "학점 4.0으로 상향",
+        label: "학점 상향",
         changes: { academic: { type: "UNIVERSITY", universityGrade: 4 } },
       },
       {

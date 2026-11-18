@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { getSavedSpecProfileMock } from "@/apis/spec";
 import type { SalaryTargetSaveData } from "@/types/salaryApi";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
   buildSalarySimulationRequest,
   sameSalaryChanges,
+  validateSalaryAdditions,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
@@ -22,13 +24,14 @@ import type {
   SalaryConditionOption,
 } from "@/types/salary";
 import SalaryConditionDrawer from "./components/SalaryConditionDrawer";
+import SalaryAcademicDrawer from "./components/SalaryAcademicDrawer";
 import SalaryExperienceDrawer from "./components/SalaryExperienceDrawer";
 import SalaryOptions from "./components/SalaryOptions";
 
 const changeKeyByField = {
   EXPERIENCE: "experiences",
   CERTIFICATE: "addCertificateIds",
-  LANGUAGE: "languageScore",
+  LANGUAGE: "languageScores",
   ACADEMIC: "academic",
 } as const satisfies Record<SalaryConditionField, keyof SalaryChanges>;
 
@@ -37,7 +40,7 @@ const formatManwon = (won: number) =>
 
 function getSelectedOptions(
   { field, options }: SalaryCondition,
-  changes: SalaryChanges
+  changes: SalaryChanges,
 ) {
   if (field === "CERTIFICATE") {
     const selectedIds = new Set(changes.addCertificateIds);
@@ -50,13 +53,46 @@ function getSelectedOptions(
 
   if (field === "EXPERIENCE") return [];
 
+  if (field === "LANGUAGE") {
+    return (changes.languageScores ?? []).flatMap((score) => {
+      const option = options.find(
+        (item) =>
+          item.changes.languageScores?.[0]?.languageExamId ===
+          score.languageExamId,
+      );
+      if (!option) return [];
+      return [
+        {
+          ...option,
+          summary: `${option.label} ${score.scoreNumeric !== null ? `${score.scoreNumeric}점` : (score.scoreGrade ?? "")}`,
+          changes: { languageScores: [score] },
+        },
+      ];
+    });
+  }
+
+  if (field === "ACADEMIC") {
+    return options
+      .filter(
+        (option) => option.changes.academic?.type === changes.academic?.type,
+      )
+      .map((option) => ({
+        ...option,
+        summary:
+          changes.academic?.type === "UNIVERSITY"
+            ? `학점 ${changes.academic.universityGrade}로 상향`
+            : option.summary,
+        changes: { academic: changes.academic },
+      }));
+  }
+
   const key = changeKeyByField[field];
   const change = changes[key];
 
   if (change == null) return [];
 
   return options.filter((option) =>
-    sameSalaryChanges(option.changes, { [key]: change })
+    sameSalaryChanges(option.changes, { [key]: change }),
   );
 }
 
@@ -82,12 +118,13 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
 
 function SalarySimulator() {
   const location = useLocation();
+  const email = useCurrentUser()?.email;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
   const [companyGroup, setCompanyGroup] = useState<"SMALL" | "LARGE">("LARGE");
   const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
-    null
+    null,
   );
   const [changes, setChanges] = useState<SalaryChanges>({});
   const [comparisonCache, setComparisonCache] = useState<{
@@ -97,11 +134,16 @@ function SalarySimulator() {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [comparisonError, setComparisonError] = useState<string | null>(null);
 
+  const profile = email ? getSavedSpecProfileMock(email) : null;
   const hasChanges = !sameSalaryChanges(changes, {});
+  const conditionError = hasChanges
+    ? validateSalaryAdditions(changes, profile)
+    : null;
   const request = buildSalarySimulationRequest(
     changes,
     companyGroup,
-    salarySimulationRequestMock.baseSpecProfileId
+    salarySimulationRequestMock.baseSpecProfileId,
+    profile?.educations ?? [],
   );
   const result = request ? getSalarySimulationMock(request) : null;
   const comparisonKey = request ? JSON.stringify(request) : null;
@@ -111,9 +153,13 @@ function SalarySimulator() {
   const openComparison = async () => {
     if (comparisonLoading) return;
 
+    if (conditionError) {
+      setComparisonError(conditionError);
+      return;
+    }
     if (!request || !comparisonKey) {
       setComparisonError(
-        "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+        "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다.",
       );
       return;
     }
@@ -121,7 +167,7 @@ function SalarySimulator() {
     const showComparison = () =>
       navigate(
         { pathname: "/salary", search: `?${compareParams.toString()}` },
-        { state: { fromSalarySimulator: true }, preventScrollReset: true }
+        { state: { fromSalarySimulator: true }, preventScrollReset: true },
       );
 
     if (comparisonCache?.key === comparisonKey) {
@@ -135,7 +181,7 @@ function SalarySimulator() {
       const data = await getSalaryTargetSaveMock(request);
       if (!data) {
         setComparisonError(
-          "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
+          "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다.",
         );
         return;
       }
@@ -221,10 +267,10 @@ function SalarySimulator() {
   const baseResults = result?.base.salaryResults ?? [];
   const simulatedResults = result?.simulated?.salaryResults ?? [];
   const startingSalary = baseResults.find(
-    ({ annual }) => annual === 0
+    ({ annual }) => annual === 0,
   )?.annualIncomeExpected;
   const changedSalary = simulatedResults.find(
-    ({ annual }) => annual === 0
+    ({ annual }) => annual === 0,
   )?.annualIncomeExpected;
   const salaryDelta =
     startingSalary !== undefined && changedSalary !== undefined
@@ -244,17 +290,21 @@ function SalarySimulator() {
           salary: annualIncomeExpected,
         }))
     : null;
-  const previewMessage = !result
-    ? "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
-    : result.simulated
-      ? [
-          result.preparationPeriod,
-          result.estimatedCost,
-          result.decisionCriteria,
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요.";
+  const previewMessage =
+    conditionError ??
+    (!request && changes.academic?.type === "UNIVERSITY"
+      ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
+      : !result
+        ? "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
+        : result.simulated
+          ? [
+              result.preparationPeriod,
+              result.estimatedCost,
+              result.decisionCriteria,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요.");
 
   return (
     <div className="w-full lg:-mb-8">
@@ -276,7 +326,7 @@ function SalarySimulator() {
               value={companyGroup}
               onChange={(event) => {
                 setCompanyGroup(
-                  event.target.value === "LARGE" ? "LARGE" : "SMALL"
+                  event.target.value === "LARGE" ? "LARGE" : "SMALL",
                 );
                 setComparisonError(null);
               }}
@@ -418,7 +468,7 @@ function SalarySimulator() {
                       [changeKeyByField[condition.field]]:
                         changes[changeKeyByField[condition.field]],
                     },
-                    {}
+                    {},
                   );
 
             return (
@@ -454,7 +504,7 @@ function SalarySimulator() {
           <button
             type="button"
             onClick={openComparison}
-            disabled={!hasChanges || comparisonLoading}
+            disabled={!hasChanges || !!conditionError || comparisonLoading}
             className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 enabled:cursor-pointer enabled:hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
           >
             {comparisonLoading
@@ -462,6 +512,11 @@ function SalarySimulator() {
               : "설정한 조건과 AI 추천 선택지 비교"}
             <span aria-hidden="true">→</span>
           </button>
+          {conditionError && (
+            <p role="alert" className="pb-4 text-[12px] text-red-500">
+              {conditionError}
+            </p>
+          )}
           {comparisonError && (
             <p role="alert" className="pb-4 text-[12px] text-red-500">
               {comparisonError}
@@ -470,7 +525,29 @@ function SalarySimulator() {
         </section>
       </div>
 
-      {openCondition?.field === "EXPERIENCE" ? (
+      {openCondition?.field === "ACADEMIC" ? (
+        <SalaryAcademicDrawer
+          condition={openCondition}
+          selected={getSelectedOptions(openCondition, changes)}
+          currentBachelor={
+            profile?.educations.find((item) => item.type === "UNIVERSITY") ??
+            null
+          }
+          bachelorCount={
+            profile?.educations.filter((item) => item.type === "UNIVERSITY")
+              .length ?? 0
+          }
+          hasGraduateDegree={
+            !!profile?.educations.some(
+              (item) =>
+                item.type === "GRADUATE_SCHOOL_MASTER" ||
+                item.type === "GRADUATE_SCHOOL_DOCTORAL",
+            )
+          }
+          onClose={() => setOpenCondition(null)}
+          onApply={applyCondition}
+        />
+      ) : openCondition?.field === "EXPERIENCE" ? (
         <SalaryExperienceDrawer
           selected={changes.experiences ?? []}
           onClose={() => setOpenCondition(null)}
@@ -481,6 +558,7 @@ function SalarySimulator() {
           key={openCondition.field}
           condition={openCondition}
           selected={getSelectedOptions(openCondition, changes)}
+          currentLanguages={profile?.languageScores ?? []}
           onClose={() => setOpenCondition(null)}
           onApply={applyCondition}
         />
