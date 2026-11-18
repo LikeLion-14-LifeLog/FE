@@ -5,25 +5,7 @@ export const salaryConditions: SalaryCondition[] = [
     field: "EXPERIENCE",
     label: "직무 경험",
     defaultSummary: "없음",
-    options: [
-      {
-        optionValue: "INTERNSHIP_3M",
-        label: "3개월",
-        summary: "인턴 3개월",
-        changes: { experience: { type: "INTERNSHIP", durationMonths: 3 } },
-      },
-      {
-        optionValue: "INTERNSHIP_6M",
-        label: "6개월",
-        summary: "인턴 6개월",
-        changes: { experience: { type: "INTERNSHIP", durationMonths: 6 } },
-      },
-      {
-        optionValue: "TRAINING_BASIC",
-        label: "직무 역량 교육 · 기초 프로젝트",
-        changes: { experience: { type: "TRAINING", durationMonths: 3 } },
-      },
-    ],
+    options: [],
   },
   {
     field: "CERTIFICATE",
@@ -58,25 +40,29 @@ export const salaryConditions: SalaryCondition[] = [
     defaultSummary: "현재 수준 유지",
     options: [
       {
-        optionValue: "TOEIC_930",
-        label: "TOEIC 930점",
+        optionValue: "TOEIC",
+        label: "TOEIC",
         changes: {
-          languageScore: {
-            languageExamId: 1,
-            scoreNumeric: 930,
-            scoreGrade: null,
-          },
+          languageScores: [
+            {
+              languageExamId: 1,
+              scoreNumeric: null,
+              scoreGrade: null,
+            },
+          ],
         },
       },
       {
-        optionValue: "OPIC_IH",
-        label: "OPIc IH",
+        optionValue: "OPIC",
+        label: "OPIc",
         changes: {
-          languageScore: {
-            languageExamId: 7,
-            scoreNumeric: null,
-            scoreGrade: "IH",
-          },
+          languageScores: [
+            {
+              languageExamId: 7,
+              scoreNumeric: null,
+              scoreGrade: null,
+            },
+          ],
         },
       },
     ],
@@ -84,11 +70,11 @@ export const salaryConditions: SalaryCondition[] = [
   {
     field: "ACADEMIC",
     label: "학력",
-    defaultSummary: "진학 안 함",
+    defaultSummary: "현재 학력 유지",
     options: [
       {
         optionValue: "UNIVERSITY_GRADE",
-        label: "학점 4.0으로 상향",
+        label: "학점 상향",
         changes: { academic: { type: "UNIVERSITY", universityGrade: 4 } },
       },
       {
