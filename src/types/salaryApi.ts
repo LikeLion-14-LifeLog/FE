@@ -1,6 +1,6 @@
 import type { ApiResponse } from "@/types/spec/api";
 
-export type SalaryCompanyScale = "SMALL" | "LARGE" | null;
+export type SalaryCompanyScale = "STARTUP" | "SMALL" | "MIDDLE" | "LARGE" | null;
 
 export type SalaryAcademicAbility = {
   type:
