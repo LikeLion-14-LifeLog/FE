@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "@/apis/client";
-import { getJobPostings, type JobPostingList } from "@/apis/jobPostings";
 import {
-  getBookmarkCount,
-  toggleSavedJob,
-  useSavedJobIds,
-} from "@/store/savedJobsStore";
+  getBookmarkedJobPostings,
+  getJobPostings,
+  setJobPostingBookmark,
+  type BookmarkedJobPostingList,
+  type JobPostingList,
+} from "@/apis/jobPostings";
+import { useCurrentUser } from "@/store/authStore";
 import type { JobPostingCard, JobSort, JobTab } from "@/types/jobs";
 import EmptyJobs from "./components/EmptyJobs";
 import FilterDropdown from "./components/FilterDropdown";
@@ -16,11 +18,13 @@ import Pagination from "./components/Pagination";
 import {
   ALL_REGION,
   DEFAULT_REGION,
-  MOCK_JOBS,
+  DEFAULT_SORT,
+  DEFAULT_TAB,
+  JOB_TABS,
   REGION_OPTIONS,
   SORT_OPTIONS,
   type RegionFilter,
-} from "./mockData";
+} from "@/constants/jobs";
 
 const PAGE_SIZE = 6;
 
@@ -47,139 +51,128 @@ const formatSalary = ({ salaryMin, salaryMax }: JobPostingCard) =>
     ? "예상 초봉 산정 중"
     : `예상 초봉 ${salaryMin.toLocaleString()}만 ~ ${salaryMax.toLocaleString()}만 원`;
 
+/** URL 쿼리 값이 허용 목록에 있으면 그대로, 아니면 기본값 */
+const pick = <T extends string>(
+  value: string | null,
+  allowed: readonly T[],
+  fallback: T
+): T => (allowed.includes(value as T) ? (value as T) : fallback);
+
+const REGION_VALUES = REGION_OPTIONS.map((option) => option.value);
+const SORT_VALUES = SORT_OPTIONS.map((option) => option.value);
+
+type LoadResult =
+  | { key: string; tab: "recommended"; data: JobPostingList; error: null }
+  | { key: string; tab: "saved"; data: BookmarkedJobPostingList; error: null }
+  | { key: string; tab: JobTab; data: null; error: unknown };
+
 const JobChancePage = () => {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<JobTab>("recommended");
-  const [region, setRegion] = useState<RegionFilter>(DEFAULT_REGION);
-  const [sort, setSort] = useState<JobSort>("latest");
-  const [page, setPage] = useState(1);
-  const [result, setResult] = useState<JobPostingList | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const queryKey = `${region}|${sort}|${page}`;
-  const [settledKey, setSettledKey] = useState<string | null>(null);
-  const isLoading = settledKey !== queryKey;
-  // TODO: 공고 저장/저장취소 API 연동 시 제거 (현재는 화면에서만 토글)
-  const [bookmarkOverrides, setBookmarkOverrides] = useState<
-    ReadonlyMap<string, boolean>
-  >(new Map());
-  // TODO: 저장한 공고 목록 API 연동 시 제거
-  const savedIds = useSavedJobIds();
+  // 탭·지역·정렬·페이지는 URL 쿼리에 보관해 새로고침해도 유지한다
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = pick(searchParams.get("tab"), JOB_TABS, DEFAULT_TAB);
+  const region = pick(searchParams.get("region"), REGION_VALUES, DEFAULT_REGION);
+  const sort = pick(searchParams.get("sort"), SORT_VALUES, DEFAULT_SORT);
+  const page = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const key = `${region}|${sort}|${page}`;
-    getJobPostings({
-      region: region === ALL_REGION ? undefined : region,
-      sort,
-      page,
-      size: PAGE_SIZE,
-      signal: controller.signal,
-    })
-      .then((data) => {
-        setResult(data);
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (controller.signal.aborted) return;
-        setError(e);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSettledKey(key);
-      });
-    return () => controller.abort();
-  }, [region, sort, page]);
-
-  const recommendedJobs = useMemo(
-    () =>
-      (result?.jobs ?? []).map((job) => {
-        const override = bookmarkOverrides.get(job.id);
-        if (override === undefined || override === job.bookmarked) return job;
-        return {
-          ...job,
-          bookmarked: override,
-          bookmarkCount: job.bookmarkCount + (override ? 1 : -1),
-        };
-      }),
-    [result, bookmarkOverrides]
-  );
-
-  const savedJobs = useMemo<JobPostingCard[]>(
-    () =>
-      MOCK_JOBS.filter((job) => savedIds.has(job.id))
-        .map((job) => ({
-          id: job.id,
-          title: job.title,
-          isClosed: false,
-          company: job.company,
-          companySize: null,
-          industry: job.industry,
-          education: job.education,
-          location: job.location,
-          salaryMin: job.salaryMin,
-          salaryMax: job.salaryMax,
-          daysLeft: job.daysLeft,
-          bookmarkCount: getBookmarkCount(job, savedIds),
-          bookmarked: true,
-        }))
-        .sort((a, b) =>
-          sort === "latest"
-            ? (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity)
-            : b.bookmarkCount - a.bookmarkCount
-        ),
-    [savedIds, sort]
-  );
-
-  const savedTotalPages = Math.max(1, Math.ceil(savedJobs.length / PAGE_SIZE));
-  const view =
-    tab === "recommended"
-      ? {
-          jobs: recommendedJobs,
-          total: result?.totalElements ?? 0,
-          totalPages: Math.max(1, result?.totalPages ?? 1),
-          page,
-        }
-      : tab === "saved"
-        ? {
-            jobs: savedJobs.slice(
-              (Math.min(page, savedTotalPages) - 1) * PAGE_SIZE,
-              Math.min(page, savedTotalPages) * PAGE_SIZE
-            ),
-            total: savedJobs.length,
-            totalPages: savedTotalPages,
-            page: Math.min(page, savedTotalPages),
-          }
-        : { jobs: [], total: 0, totalPages: 1, page: 1 };
-
-  const resetPage =
-    <T,>(setter: (value: T) => void) =>
-    (value: T) => {
-      setter(value);
-      setPage(1);
-    };
-
-  const toggleBookmark = (job: JobPostingCard) => {
-    if (tab === "saved") {
-      toggleSavedJob(job.id);
-      return;
-    }
-    setBookmarkOverrides((prev) => {
-      const next = new Map(prev);
-      next.set(job.id, !job.bookmarked);
-      return next;
-    });
+  /** 쿼리 갱신. page 를 지정하지 않으면 1페이지로 돌아간다. */
+  const updateQuery = (next: {
+    tab?: JobTab;
+    region?: RegionFilter;
+    sort?: JobSort;
+    page?: number;
+  }) => {
+    const merged = { tab, region, sort, page: 1, ...next };
+    const params = new URLSearchParams();
+    if (merged.tab !== DEFAULT_TAB) params.set("tab", merged.tab);
+    if (merged.region !== DEFAULT_REGION) params.set("region", merged.region);
+    if (merged.sort !== DEFAULT_SORT) params.set("sort", merged.sort);
+    if (merged.page > 1) params.set("page", String(merged.page));
+    setSearchParams(params, { replace: true });
   };
 
-  const isRecommendedPending = tab === "recommended" && isLoading && !result;
-  const recommendedError = tab === "recommended" && error && !isLoading;
+  // 로그인/로그아웃으로 토큰이 바뀌면 다시 불러온다
+  const accessToken = useCurrentUser()?.accessToken;
+  // 북마크 변경 후 목록·개수를 새로 받기 위한 값
+  const [reloadKey, setReloadKey] = useState(0);
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
+    new Set()
+  );
+  const queryKey = `${tab}|${region}|${sort}|${page}|${accessToken ?? ""}|${reloadKey}`;
+  const [loaded, setLoaded] = useState<LoadResult | null>(null);
+  const [recommended, setRecommended] = useState<JobPostingList | null>(null);
+  const isLoading = loaded?.key !== queryKey;
+
+  useEffect(() => {
+    if (tab === "offers") return;
+    const controller = new AbortController();
+    const key = `${tab}|${region}|${sort}|${page}|${accessToken ?? ""}|${reloadKey}`;
+    const request =
+      tab === "recommended"
+        ? getJobPostings({
+            region: region === ALL_REGION ? undefined : region,
+            sort,
+            page,
+            size: PAGE_SIZE,
+            signal: controller.signal,
+          }).then((data) => {
+            setRecommended(data);
+            setLoaded({ key, tab, data, error: null });
+          })
+        : getBookmarkedJobPostings({
+            page,
+            size: PAGE_SIZE,
+            signal: controller.signal,
+          }).then((data) => setLoaded({ key, tab, data, error: null }));
+    request.catch((error: unknown) => {
+      if (!controller.signal.aborted)
+        setLoaded({ key, tab, data: null, error });
+    });
+    return () => controller.abort();
+  }, [tab, region, sort, page, accessToken, reloadKey]);
+
+  const current = loaded?.tab === tab ? loaded : null;
+  const error = current?.error ?? null;
+  const view =
+    tab === "offers" || !current?.data
+      ? { jobs: [] as JobPostingCard[], total: 0, totalPages: 1 }
+      : {
+          jobs: current.data.jobs,
+          total: current.data.totalElements,
+          totalPages: Math.max(1, current.data.totalPages),
+        };
+
+  const toggleBookmark = async (job: JobPostingCard) => {
+    if (pendingIds.has(job.id)) return;
+    setPendingIds((prev) => new Set(prev).add(job.id));
+    try {
+      await setJobPostingBookmark(job.id, !job.bookmarked);
+      setReloadKey((value) => value + 1);
+    } catch {
+      // 실패하면 화면 상태를 그대로 둔다
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+    }
+  };
+
+  const isPending = tab !== "offers" && isLoading && !current;
+  const listError = tab !== "offers" && error && !isLoading;
 
   return (
     <div className="pb-6">
       <JobTabs
         value={tab}
-        onChange={resetPage(setTab)}
+        onChange={(next) => updateQuery({ tab: next })}
         counts={{
-          recommended: result?.tabCounts.recommended ?? 0,
-          saved: result?.tabCounts.saved ?? 0,
+          recommended: recommended?.tabCounts.recommended ?? 0,
+          saved:
+            current?.tab === "saved" && current.data
+              ? current.data.totalElements
+              : (recommended?.tabCounts.saved ?? 0),
           offers: 0,
         }}
       />
@@ -188,13 +181,13 @@ const JobChancePage = () => {
         <div className="mb-6 flex items-center justify-between gap-4">
           {tab === "recommended" ? (
             <div className="flex items-center gap-3">
-              {result && (
+              {recommended && (
                 <p className="text-[13px] leading-[19.5px] whitespace-nowrap text-[#64748b]">
-                  {result.desiredJob ? (
+                  {recommended.desiredJob ? (
                     <>
                       희망 직무{" "}
                       <strong className="font-bold text-[#0f172a]">
-                        {result.desiredJob.name}
+                        {recommended.desiredJob.name}
                       </strong>{" "}
                       기준
                     </>
@@ -207,7 +200,7 @@ const JobChancePage = () => {
                 label="지역"
                 options={REGION_OPTIONS}
                 value={region}
-                onChange={resetPage<RegionFilter>(setRegion)}
+                onChange={(next) => updateQuery({ region: next })}
                 width={160}
                 menuWidth={180}
               />
@@ -228,7 +221,7 @@ const JobChancePage = () => {
             <FilterDropdown
               options={SORT_OPTIONS}
               value={sort}
-              onChange={resetPage<JobSort>(setSort)}
+              onChange={(next) => updateQuery({ sort: next })}
               width={160}
               alignRight
             />
@@ -236,7 +229,7 @@ const JobChancePage = () => {
         </div>
       )}
 
-      {isRecommendedPending ? null : recommendedError ? (
+      {isPending ? null : listError ? (
         <EmptyJobs message={errorMessage(error)} />
       ) : view.jobs.length === 0 ? (
         <EmptyJobs message={EMPTY_MESSAGES[tab]} />
@@ -244,7 +237,7 @@ const JobChancePage = () => {
         <>
           <div
             className={`grid grid-cols-3 gap-x-15 gap-y-11 transition-opacity ${
-              tab === "recommended" && isLoading ? "opacity-60" : ""
+              isLoading ? "opacity-60" : ""
             }`}
           >
             {view.jobs.map((job) => (
@@ -266,9 +259,9 @@ const JobChancePage = () => {
             ))}
           </div>
           <Pagination
-            page={view.page}
+            page={Math.min(page, view.totalPages)}
             totalPages={view.totalPages}
-            onChange={setPage}
+            onChange={(next) => updateQuery({ page: next })}
           />
         </>
       )}

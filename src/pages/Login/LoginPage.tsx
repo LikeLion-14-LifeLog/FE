@@ -17,7 +17,7 @@ import {
 import { findNickname } from "./mockAccounts";
 import { login as saveLogin } from "@/store/authStore";
 import { login } from "@/apis/auth";
-import { toApiError } from "@/apis/client";
+import { ApiError } from "@/apis/client";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -51,13 +51,14 @@ const LoginPage = () => {
     try {
       ({ accessToken } = await login({ email: trimmedEmail, password }));
     } catch (error) {
-      const { status } = toApiError(error);
+      const { status } =
+        error instanceof ApiError ? error : { status: null };
       setLoginError(
         status === 401
           ? MESSAGES.loginFailed
           : status === 403
             ? MESSAGES.loginForbidden
-            : status === undefined
+            : status === null
               ? MESSAGES.networkError
               : MESSAGES.serverError,
       );

@@ -15,7 +15,7 @@ import {
 } from "./validation";
 import { saveAccount } from "./mockAccounts";
 import { signup } from "@/apis/auth";
-import { toApiError } from "@/apis/client";
+import { ApiError } from "@/apis/client";
 import { TERM_IDS } from "@/constants/terms";
 
 const SignupPage = () => {
@@ -70,12 +70,13 @@ const SignupPage = () => {
         ],
       });
     } catch (error) {
-      const { status, message } = toApiError(error);
+      const { status, message } =
+        error instanceof ApiError ? error : { status: null, message: undefined };
       if (status === 409) {
         setDuplicatedEmail(email.trim().toLowerCase());
       } else if (status === 400) {
         setSaveError(message ?? MESSAGES.signupInvalidRequest);
-      } else if (status === undefined) {
+      } else if (status === null) {
         setSaveError(MESSAGES.networkError);
       } else {
         setSaveError(MESSAGES.signupFailed);

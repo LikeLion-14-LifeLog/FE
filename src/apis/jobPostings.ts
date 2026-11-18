@@ -198,3 +198,50 @@ export async function getJobPostingDetail(
   );
   return toJobPostingDetail(unwrap(data));
 }
+
+type JobPostingBookmarkListDto = PageMeta & {
+  jobPostings: JobPostingCardDto[];
+};
+
+export type BookmarkedJobPostingList = PageMeta & {
+  jobs: JobPostingCard[];
+};
+
+/** 저장(북마크)한 공고 목록 — 최근 저장 순 */
+export async function getBookmarkedJobPostings({
+  page = 1,
+  size = 6,
+  signal,
+}: { page?: number; size?: number; signal?: AbortSignal } = {}): Promise<BookmarkedJobPostingList> {
+  const { data } = await apiClient.get<ApiResponse<JobPostingBookmarkListDto>>(
+    "/api/job-postings/bookmarks",
+    { params: { page, size }, signal }
+  );
+  const body = unwrap(data);
+  return {
+    jobs: body.jobPostings.map(toJobPostingCard),
+    page: body.page,
+    size: body.size,
+    totalElements: body.totalElements,
+    totalPages: body.totalPages,
+    hasNext: body.hasNext,
+  };
+}
+
+export type JobPostingBookmarkResult = {
+  bookmarked: boolean;
+  bookmarkCount: number;
+};
+
+/** 공고 저장(true) / 저장 취소(false). 반영 후 저장 여부와 찜 수를 반환한다. */
+export async function setJobPostingBookmark(
+  jobPostingId: string,
+  bookmarked: boolean
+): Promise<JobPostingBookmarkResult> {
+  const url = `/api/job-postings/${encodeURIComponent(jobPostingId)}/bookmark`;
+  const { data } = bookmarked
+    ? await apiClient.post<ApiResponse<JobPostingBookmarkResult>>(url)
+    : await apiClient.delete<ApiResponse<JobPostingBookmarkResult>>(url);
+  const body = unwrap(data);
+  return { bookmarked: body.bookmarked, bookmarkCount: body.bookmarkCount };
+}
