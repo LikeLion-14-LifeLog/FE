@@ -51,11 +51,15 @@ function SpecFormPage({ email }: { email: string | undefined }) {
   useEffect(() => {
     let active = true;
 
-    getSpecFormOptions()
+    // 💡 로컬 스토리지에서 토큰을 꺼내어 getSpecFormOptions의 인자로 전달합니다.
+    const accessToken = localStorage.getItem("accessToken") ?? "";
+
+    getSpecFormOptions(accessToken)
       .then((data) => {
         if (active) setOptions(data);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("거주 지역 옵션 로드 실패:", err);
         if (active) setOptionsError(true);
       });
 
