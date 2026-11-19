@@ -151,3 +151,37 @@ export type CareerPathCandidatesData = {
     interpretation: string;
   };
 };
+
+/**
+ * GET /api/v1/career-paths/{pathId} — 커리어 경로 상세.
+ * 유효한 pathId 가 아직 없어 정상 응답 구조가 확인되지 않았다 (확인 후 필드 정의).
+ */
+export type CareerPathDetail = Record<string, unknown>;
+
+/** 상세 조회 결과 — 없는 경로(404 CAREER_PATH_NOT_FOUND)는 오류가 아니라 상태로 돌려준다 */
+export type CareerPathDetailResult =
+  | { status: "found"; data: CareerPathDetail }
+  | { status: "not-found"; message: string };
+
+/** GET /api/v1/career-paths/yearly — 응답자 한 명의 연도별 직업코드 이력 한 지점 */
+export type YearlyCodePoint = {
+  year: number;
+  /** 4자리 직업코드 (앞자리 0 유지, 문자열) */
+  code: string;
+};
+
+/** GET /api/v1/career-paths/yearly/routes/{source}/{target} — 관측 경로 상세 */
+export type CareerRouteDetailData = {
+  dataStatus: string;
+  verifiedFirstJobChange: boolean;
+  /** 관측되지 않은(또는 공개 기준 미달) 경로면 null — 404 가 아니라 200 으로 온다 */
+  route: CareerRoute | null;
+  /** 연도 구간별 관측 변화 (yearly/graph 의 edges 와 같은 구조) */
+  yearlyIntervals: CareerGraphEdge[];
+  /** 아래 4개는 검증된 첫 직장·이직 데이터가 없어 현재 항상 null — 값이 있다고 가정해 표시하지 않는다 */
+  firstJobSalary: unknown;
+  postChangeSalary: unknown;
+  monthsToFirstJobChange: unknown;
+  salaryDistribution: unknown;
+  notice: string;
+};
