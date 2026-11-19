@@ -11,7 +11,11 @@ export default function SpecEntryPage() {
   const [params] = useSearchParams();
 
   // 명시적으로 스펙을 수정하거나 재진단할 때만 등록 화면으로 진입
-  if (params.get("edit") === "1" || !user) {
+  if (!user) {
+    return <Navigate to="/error/login-required" replace />;
+  }
+
+  if (params.get("edit") === "1") {
     return <SpecPage />;
   }
 

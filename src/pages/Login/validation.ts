@@ -1,3 +1,6 @@
+/** 서버 회원가입 nickname 최대 길이 */
+export const NICKNAME_MAX_LENGTH = 30;
+
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** 8자 이상, 영문·숫자 각각 1자 이상 포함 */
@@ -11,6 +14,7 @@ export const MESSAGES = {
   passwordInvalid: "비밀번호는 8자 이상이어야 합니다. (영문·숫자 포함)",
   passwordMismatch: "비밀번호가 일치하지 않습니다. 다시 확인해 주세요.",
   nicknameRequired: "닉네임을 2자 이상 입력해 주세요.",
+  nicknameTooLong: `닉네임은 ${NICKNAME_MAX_LENGTH}자까지 입력할 수 있어요.`,
   termsRequired: "회원가입을 위해 필수 약관에 동의해 주세요.",
   emailAlreadyRegistered: "이미 가입된 이메일입니다.",
   signupInvalidRequest:
