@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "@/apis/client";
 import { getJobPostingDetail, setJobPostingBookmark } from "@/apis/jobPostings";
-import { useCurrentUser } from "@/store/authStore";
+import { getAccessToken, useCurrentUser } from "@/store/authStore";
 import type { JobPostingDetail } from "@/types/jobs";
 import BookmarkButton from "./components/BookmarkButton";
 
@@ -157,12 +157,20 @@ const JobDetailPage = () => {
   const toggleBookmark = async () => {
     if (bookmarkPending) return;
     setBookmarkPending(true);
+    const requestedJobId = jobId;
+    const requestedToken = getAccessToken();
     try {
       const { bookmarked, bookmarkCount } = await setJobPostingBookmark(
         job.id,
         !job.bookmarked
       );
-      setState({ jobId, detail: { ...job, bookmarked, bookmarkCount }, error: null });
+      // 응답이 늦게 와서 그사이 다른 공고로 이동했거나 세션이 바뀌었으면 반영하지 않는다
+      if (getAccessToken() !== requestedToken) return;
+      setState((prev) =>
+        prev?.jobId === requestedJobId && prev.detail
+          ? { ...prev, detail: { ...prev.detail, bookmarked, bookmarkCount } }
+          : prev
+      );
     } catch {
       // 실패하면 화면 상태를 그대로 둔다
     } finally {

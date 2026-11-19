@@ -52,8 +52,12 @@ apiClient.interceptors.response.use(
     if (axios.isCancel(error)) return Promise.reject(error);
     if (isAxiosError<Partial<ApiResponse<unknown>>>(error)) {
       const status = error.response?.status ?? null;
-      // 토큰을 보낸 요청이 401이면 토큰 만료/무효로 보고 로그아웃한다
-      if (status === 401 && error.config?.headers?.Authorization) logout();
+      // 현재 세션의 토큰을 보낸 요청이 401이면 토큰 만료/무효로 보고 로그아웃한다.
+      // 이전 세션 토큰으로 보낸 요청의 늦은 401은 새 세션을 지우지 않는다.
+      const sentToken = error.config?.headers?.Authorization;
+      const currentToken = getAccessToken();
+      if (status === 401 && currentToken && sentToken === `Bearer ${currentToken}`)
+        logout();
 
       const body = error.response?.data;
       return Promise.reject(
