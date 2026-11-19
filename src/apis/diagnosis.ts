@@ -2,29 +2,55 @@ import type {
   AnalysisEvent,
   AnalysisEventName,
   AnalysisRunData,
+  AnalysisRunResult,
 } from "@/types/diagnosis";
 import type { ApiResponse } from "@/types/spec/api";
-import { getMockAnalysisResult } from "@/mocks/diagnosis";
-import { fromMockDiagnosis, type DiagnosisView } from "@/utils/diagnosisMapper";
+import { getAccessToken } from "@/store/authStore";
+import { fromApiDiagnosis, type DiagnosisView } from "@/utils/diagnosisMapper";
 
 export type DiagnosisViewState =
   | { status: "completed"; data: DiagnosisView }
   | { status: "pending" | "canceled" | "failed" | "not-found"; data: null };
 
-/** 실제 GET 분석 실행 조회로 교체할 단일 진입점. 전송 오류는 throw한다. */
+/** 기존 결과 페이지 호출부 호환. email 인자는 화면 연동 시 제거한다. */
 export async function getDiagnosisView(
-  email: string,
+  _email: string,
   runId: number
 ): Promise<DiagnosisViewState> {
-  const response = getMockAnalysisResult(email, runId);
-  if (!response) return { status: "not-found", data: null };
+  const token = getAccessToken();
+  if (!token) throw new Error("로그인이 필요합니다.");
 
-  if (response.status === "COMPLETED" && response.result) {
-    return { status: "completed", data: fromMockDiagnosis(response.result) };
+  const response = await fetch(
+    apiUrl(`/api/spec-profile/analyzation/runs/${runId}`),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const body = (await response
+    .json()
+    .catch(() => null)) as ApiResponse<AnalysisRunResult> | null;
+
+  if (body?.code === "RUN_NOT_FOUND" && response.status === 404) {
+    return { status: "not-found", data: null };
   }
-  if (response.status === "FAILED") return { status: "failed", data: null };
-  if (response.status === "CANCELED") return { status: "canceled", data: null };
-  return { status: "pending", data: null };
+  if (!response.ok || !body?.success) {
+    throw new Error(
+      body?.message || `결과 조회 실패 (HTTP ${response.status})`
+    );
+  }
+  if (!body.data || body.data.runId !== runId) {
+    throw new Error("분석 결과 응답이 올바르지 않습니다.");
+  }
+
+  const { status, result } = body.data;
+  if (status === "COMPLETED") {
+    if (!result) throw new Error("완료된 분석 결과가 없습니다.");
+    return { status: "completed", data: fromApiDiagnosis(result) };
+  }
+  if (status === "FAILED") return { status: "failed", data: null };
+  if (status === "CANCELED") return { status: "canceled", data: null };
+  if (status === "QUEUED" || status === "IN_PROGRESS") {
+    return { status: "pending", data: null };
+  }
+  throw new Error("알 수 없는 분석 상태입니다.");
 }
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");

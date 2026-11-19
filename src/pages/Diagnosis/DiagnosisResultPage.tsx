@@ -9,8 +9,8 @@ import type { SalaryResult } from "@/types/diagnosis";
 const formatSalary = (won: number) =>
   (won / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 
-const validSalaries = (items: SalaryResult[]) =>
-  items.length === 3 && [0, 3, 5].every((year) =>
+const validSalaries = (items: SalaryResult[] | undefined) =>
+  Array.isArray(items) && items.length === 3 && [0, 3, 5].every((year) =>
     items.filter((item) => item.annual === year &&
       Number.isFinite(item.annualIncomeMin) &&
       Number.isFinite(item.annualIncomeExpected) &&
@@ -86,6 +86,9 @@ export default function DiagnosisResultPage() {
   if (result?.status === "pending") {
     return <Navigate to={`/diagnosis/loading?runId=${runId}`} replace />;
   }
+  if (result?.status === "not-found") {
+    return <UnavailableResult message="분석 실행 이력을 찾을 수 없습니다." />;
+  }
   if (result?.status === "failed") {
     return <UnavailableResult message="연봉 분석이 실패했습니다. 스펙을 확인하고 다시 진단해 주세요." />;
   }
@@ -94,7 +97,7 @@ export default function DiagnosisResultPage() {
   }
 
   const data = result?.status === "completed" ? result.data : null;
-  if (!data || !validSalaries(data.salaryResults)) {
+  if (!data || !validSalaries(data.salaryResults) || !data.comparisonGroup || !Array.isArray(data.specRows)) {
     return <UnavailableResult message="완료된 분석 결과가 없거나 연봉 정보가 올바르지 않습니다." />;
   }
 
@@ -140,12 +143,9 @@ export default function DiagnosisResultPage() {
           <h2 id="salary-trend-title" className="text-[16px] font-semibold text-text-primary">
             연차별 연봉 추이
           </h2>
-          <p className="mt-2 text-[11px] text-text-secondary">현재 스펙 유지 시 예상되는 연봉 변화</p>
+          <p className="mt-2 text-[11px] text-text-secondary">분석 당시 스펙 기준 예상 연봉 변화</p>
           <div className="mt-4"><SalaryChart data={chartData} /></div>
           <p className="mt-1 text-[10px] leading-relaxed text-text-muted">{salaryNotice}</p>
-          <p className="mt-1 text-[10px] text-text-muted">
-            현재 연봉·비교 집단·보완점은 API 명세의 예시값입니다. 실제 개인별 분석 결과가 아닙니다.
-          </p>
         </section>
 
         <section aria-labelledby="diagnosis-detail-title" className="flex min-w-0 flex-col">
