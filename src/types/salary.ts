@@ -1,23 +1,25 @@
+import type { SalaryAcademicAbility, SalaryExperience } from "./salaryApi";
+
 export type SalaryConditionField =
-  | "EXPERIENCE"
-  | "CERTIFICATE"
-  | "LANGUAGE"
-  | "ACADEMIC";
+  "EXPERIENCE" | "CERTIFICATE" | "LANGUAGE" | "ACADEMIC";
 
 export type SalaryChanges = {
   experience?: {
     type: "INTERNSHIP" | "TRAINING";
     durationMonths: number;
   } | null;
+  experiences?: SalaryExperience[];
   addCertificateIds?: number[];
-  languageScore?: {
+  languageScores?: {
     languageExamId: number;
     scoreNumeric: number | null;
     scoreGrade: string | null;
-  };
+  }[];
   academic?: {
     type: "UNIVERSITY" | "GRADUATE_SCHOOL";
     universityGrade?: number;
+    details?: SalaryAcademicAbility;
+    majorName?: string;
   };
 };
 
