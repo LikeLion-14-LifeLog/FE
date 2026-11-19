@@ -7,7 +7,7 @@ import {
   type SpecProfileDraft,
 } from "@/apis/spec";
 import { getActiveMockDiagnosis, startMockDiagnosis } from "@/mocks/diagnosis";
-import { useCurrentUser } from "@/store/authStore";
+import { getAccessToken, useCurrentUser } from "@/store/authStore";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
@@ -51,7 +51,7 @@ function SpecFormPage({ email }: { email: string | undefined }) {
 
     const loadProfile = async () => {
       try {
-        const accessToken = localStorage.getItem("accessToken")?.trim();
+        const accessToken = getAccessToken();
 
         if (!accessToken) {
           throw new Error("스펙 조회에 필요한 인증 토큰이 없습니다.");
