@@ -107,6 +107,24 @@ const JobChancePage = () => {
     if (tab === "offers") return;
     const controller = new AbortController();
     const key = `${tab}|${region}|${sort}|${page}|${accessToken ?? ""}|${reloadKey}`;
+    /**
+     * 요청한 페이지가 마지막 페이지보다 뒤면(예: 저장 취소로 마지막 페이지가 사라짐)
+     * URL 의 page 를 마지막 페이지로 옮기고 true. 바뀐 page 로 다시 불러온다.
+     */
+    const clampPage = (totalPages: number) => {
+      const lastPage = Math.max(1, totalPages);
+      if (page <= lastPage) return false;
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (lastPage > 1) next.set("page", String(lastPage));
+          else next.delete("page");
+          return next;
+        },
+        { replace: true }
+      );
+      return true;
+    };
     const request =
       tab === "recommended"
         ? getJobPostings({
@@ -117,19 +135,23 @@ const JobChancePage = () => {
             signal: controller.signal,
           }).then((data) => {
             setRecommended(data);
-            setLoaded({ key, tab, data, error: null });
+            if (!clampPage(data.totalPages))
+              setLoaded({ key, tab, data, error: null });
           })
         : getBookmarkedJobPostings({
             page,
             size: PAGE_SIZE,
             signal: controller.signal,
-          }).then((data) => setLoaded({ key, tab, data, error: null }));
+          }).then((data) => {
+            if (!clampPage(data.totalPages))
+              setLoaded({ key, tab, data, error: null });
+          });
     request.catch((error: unknown) => {
       if (!controller.signal.aborted)
         setLoaded({ key, tab, data: null, error });
     });
     return () => controller.abort();
-  }, [tab, region, sort, page, accessToken, reloadKey]);
+  }, [tab, region, sort, page, accessToken, reloadKey, setSearchParams]);
 
   const current = loaded?.tab === tab ? loaded : null;
   const error = current?.error ?? null;
@@ -259,7 +281,7 @@ const JobChancePage = () => {
             ))}
           </div>
           <Pagination
-            page={Math.min(page, view.totalPages)}
+            page={page}
             totalPages={view.totalPages}
             onChange={(next) => updateQuery({ page: next })}
           />
