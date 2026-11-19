@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { startAnalysis } from "@/apis/diagnosis";
 import {
   getSpecFormOptions,
   getSpecProfile,
@@ -39,10 +41,12 @@ const emptyProfile = (): SpecProfileDraft => ({
 });
 
 function SpecFormPage() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<SpecProfileDraft>(emptyProfile);
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
   const [optionsError, setOptionsError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [needsReload, setNeedsReload] = useState(false);
   const [notice, setNotice] = useState("");
   const [editingEducation, setEditingEducation] = useState(false);
@@ -112,7 +116,7 @@ function SpecFormPage() {
   };
 
   const handleSave = async () => {
-    if (saving || needsReload) return;
+    if (saving || starting || needsReload) return;
 
     if (hasPendingEdits) {
       setNotice("작성 중인 항목을 저장하거나 취소한 뒤 저장해 주세요.");
@@ -163,12 +167,38 @@ function SpecFormPage() {
     }
   };
 
-  const handleDiagnose = () => {
-    if (saving || needsReload) return;
+  const handleDiagnose = async () => {
+    if (saving || starting || needsReload) return;
 
-    setNotice(
-      "진단 기능은 API 연동 준비 중입니다. 프로필 저장을 먼저 이용해 주세요."
-    );
+    if (!canDiagnose) {
+      setNotice("필수 정보와 입력한 항목을 확인해 주세요.");
+      return;
+    }
+
+    setStarting(true);
+    setNotice("");
+
+    try {
+      const token = getAccessToken();
+      if (!token) throw new Error("로그인이 필요합니다.");
+
+      await saveSpecProfile(profile, token);
+      const { runId } = await startAnalysis(token);
+      if (!Number.isSafeInteger(runId) || runId <= 0) {
+        throw new Error("분석 실행 응답이 올바르지 않습니다.");
+      }
+
+      navigate(`/diagnosis/loading?runId=${runId}`);
+    } catch (error: unknown) {
+      console.error("스펙 분석 시작 실패", error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "분석 시작에 실패했습니다. 다시 시도해 주세요."
+      );
+    } finally {
+      setStarting(false);
+    }
   };
 
   if (optionsError) {
@@ -183,7 +213,10 @@ function SpecFormPage() {
     <div className="w-full pb-28">
       <div className="mb-6 border-t border-border-strong" />
 
-      <fieldset disabled={saving || needsReload} className="contents">
+      <fieldset
+        disabled={saving || starting || needsReload}
+        className="contents"
+      >
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-8 lg:border-r lg:border-border lg:pr-8">
             <BasicInfoSection
@@ -256,6 +289,7 @@ function SpecFormPage() {
 
       <SpecFooter
         saving={saving || needsReload}
+        starting={starting}
         canDiagnose={canDiagnose && !needsReload}
         onSave={handleSave}
         onDiagnose={handleDiagnose}
