@@ -114,6 +114,11 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
               if (isFinished(nextStatus)) {
                 finished.current = true;
                 controller.abort();
+                if (nextStatus === "COMPLETED") {
+                  navigate(`/diagnosis/result?runId=${runId}`, {
+                    replace: true,
+                  });
+                }
               }
             },
             controller.signal
@@ -150,7 +155,7 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
       controller.abort();
       if (connection.current === controller) connection.current = null;
     };
-  }, [runId, validRunId, notFound, retryKey]);
+  }, [runId, validRunId, notFound, retryKey, navigate]);
 
   const handleCancel = async () => {
     if (!validRunId || notFound || finished.current || cancelPending.current)
@@ -208,7 +213,7 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
     : canceled || failed
       ? "스펙 등록 페이지에서 다시 진단할 수 있습니다."
       : completed
-        ? "분석이 완료되었습니다. 결과 조회는 추후 연동됩니다."
+        ? "분석이 완료되었습니다. 진단 결과를 확인해 주세요."
         : "입력하신 스펙 정보를 분석하고 있습니다.";
 
   const buttonClass =

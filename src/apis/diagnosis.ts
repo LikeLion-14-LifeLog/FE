@@ -24,17 +24,13 @@ export async function getDiagnosisView(
     apiUrl(`/api/spec-profile/analyzation/runs/${runId}`),
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  const body = (await response
-    .json()
-    .catch(() => null)) as ApiResponse<AnalysisRunResult> | null;
+  const body = (await response.json().catch(() => null)) as ApiResponse<AnalysisRunResult> | null;
 
   if (body?.code === "RUN_NOT_FOUND" && response.status === 404) {
     return { status: "not-found", data: null };
   }
   if (!response.ok || !body?.success) {
-    throw new Error(
-      body?.message || `결과 조회 실패 (HTTP ${response.status})`
-    );
+    throw new Error(body?.message || `결과 조회 실패 (HTTP ${response.status})`);
   }
   if (!body.data || body.data.runId !== runId) {
     throw new Error("분석 결과 응답이 올바르지 않습니다.");
@@ -72,6 +68,21 @@ async function checkResponse<T>(response: Response): Promise<T> {
     throw new Error(body?.message || `요청 실패 (HTTP ${response.status})`);
   }
   return body.data;
+}
+
+/** 최근 대기·진행·완료된 분석의 실행 ID를 서버에서 조회한다. */
+export async function getLatestAnalysisRunId(): Promise<number> {
+  const token = getAccessToken();
+  if (!token) throw new Error("로그인이 필요합니다.");
+
+  const response = await fetch(apiUrl("/api/spec-profile/runs/latest"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await checkResponse<{ runId: number }>(response);
+  if (!Number.isSafeInteger(data?.runId) || data.runId <= 0) {
+    throw new Error("최근 분석 실행 정보가 올바르지 않습니다.");
+  }
+  return data.runId;
 }
 
 export async function startAnalysis(token: string): Promise<AnalysisRunData> {
