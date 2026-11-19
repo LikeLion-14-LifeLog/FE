@@ -101,6 +101,67 @@ export function toSalaryAcademicAbility(
   };
 }
 
+/** 서버에 저장된 목표 조건을 시뮬레이터 UI 상태로 변환한다. */
+export function restoreSalaryChanges(target: SalaryTargetData): SalaryChanges {
+  const { academicAbilities, certificates, languageExamScores, experiences } = target.changes;
+  const changes: SalaryChanges = {};
+
+  if (certificates.length) {
+    changes.addCertificateIds = [...new Set(certificates.map(({ certificateId }) => certificateId))];
+  }
+  if (languageExamScores.length) {
+    changes.languageScores = languageExamScores.map(({ languageExamId, scoreNumeric, scoreGrade }) => ({
+      languageExamId,
+      scoreNumeric,
+      scoreGrade,
+    }));
+  }
+  if (experiences.length) {
+    changes.experiences = experiences.map((item) => ({
+      type: item.type,
+      title: item.title,
+      startedYearMonth: item.startedYearMonth,
+      endedYearMonth: item.endedYearMonth,
+      description: item.description,
+      awarded: item.awarded,
+      organizerName: item.organizerName,
+      awardGrade: item.awardGrade,
+    }));
+  }
+
+  if (academicAbilities.length > 1) {
+    throw new Error("복수 학력 목표는 현재 시뮬레이터에서 복원할 수 없습니다.");
+  }
+  const academic = academicAbilities[0];
+  if (academic) {
+    if (academic.type === "UNIVERSITY" && academic.universityGrade !== null) {
+      changes.academic = {
+        type: "UNIVERSITY",
+        universityGrade: academic.universityGrade,
+      };
+    } else if (academic.type === "GRADUATE_SCHOOL_MASTER") {
+      const details: SalaryAcademicAbility = {
+        type: academic.type,
+        status: academic.status,
+        location: academic.location,
+        universityGrade: academic.universityGrade,
+        universityStandardGrade: academic.universityStandardGrade,
+        graduatedYearMonth: academic.graduatedYearMonth,
+        majorAffiliation: academic.majorAffiliation,
+        majorId: academic.majorId,
+      };
+      changes.academic = {
+        type: "GRADUATE_SCHOOL",
+        details,
+        majorName: academic.majorName ?? undefined,
+      };
+    } else {
+      throw new Error("지원하지 않는 학력 목표 유형입니다.");
+    }
+  }
+  return changes;
+}
+
 export function buildSalaryChanges(
   options: SalaryConditionOption[]
 ): SalaryChanges {

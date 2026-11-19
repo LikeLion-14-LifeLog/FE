@@ -9,6 +9,7 @@ import { getDiagnosisView, getLatestAnalysisRunId } from "@/apis/diagnosis";
 import type {
   SalaryCompanyScale,
   SalaryTargetSaveData,
+  SalaryTargetData,
   SalarySimulationData,
 } from "@/types/salaryApi";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -17,6 +18,8 @@ import {
   buildSalarySimulationRequest,
   simulateSalary,
   saveSalaryTarget,
+  getSalaryTarget,
+  restoreSalaryChanges,
   sameSalaryChanges,
   validateSalaryAdditions,
 } from "@/apis/salarySimulation";
@@ -197,6 +200,9 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     null
   );
   const [changes, setChanges] = useState<SalaryChanges>({});
+  const [savedCertificates, setSavedCertificates] = useState<
+    SalaryTargetData["changes"]["certificates"]
+  >([]);
   const [comparisonCache, setComparisonCache] = useState<{
     key: string;
     data: SalaryTargetSaveData;
@@ -210,6 +216,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     profile: SpecProfileDraft;
   } | null>(null);
   const [profileError, setProfileError] = useState(false);
+  const [targetError, setTargetError] = useState(false);
   const [simulationRetry, setSimulationRetry] = useState(0);
   const [settledRequests, setSettledRequests] = useState(0);
   const simulationCache = useRef(new Map<string, SalarySimulationData>());
@@ -231,7 +238,22 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     if (!token) return;
 
     Promise.all([getSpecProfile(token), getCurrentSpecProfileId()])
-      .then(([profile, id]) => {
+      .then(async ([profile, id]) => {
+        try {
+          const target = await getSalaryTarget();
+          if (!active) return;
+          if (target) {
+            if (target.baseSpecProfileId !== id) {
+              throw new Error("저장된 목표의 기준 스펙이 현재 스펙과 다릅니다.");
+            }
+            const restored = restoreSalaryChanges(target);
+            setCompanyGroup(target.companyGroupScale);
+            setChanges(restored);
+            setSavedCertificates(target.changes.certificates);
+          }
+        } catch {
+          if (active) setTargetError(true);
+        }
         if (active) setCurrentSpec({ email, id, profile });
       })
       .catch(() => {
@@ -241,6 +263,39 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
       active = false;
     };
   }, [email, locked]);
+
+  const conditions = salaryConditions.map((condition) => {
+    if (condition.field !== "CERTIFICATE" || !savedCertificates.length) {
+      return condition;
+    }
+
+    const options = [...condition.options];
+    for (const { certificateId, certificateName } of savedCertificates) {
+      const name = certificateName.toLowerCase();
+      const index = options.findIndex(
+        (option) =>
+          option.changes.addCertificateIds?.includes(certificateId) ||
+          [option.label, ...(option.keywords ?? [])].some(
+            (label) => label.toLowerCase() === name ||
+              (name.length >= 3 && label.toLowerCase().includes(name))
+          )
+      );
+      const restoredOption = {
+        optionValue: String(certificateId),
+        label: certificateName,
+        changes: { addCertificateIds: [certificateId] },
+      };
+      if (index === -1) {
+        options.push(restoredOption);
+      } else {
+        options[index] = {
+          ...options[index],
+          changes: { addCertificateIds: [certificateId] },
+        };
+      }
+    }
+    return { ...condition, options };
+  });
 
   const profile = currentSpec?.email === email ? currentSpec.profile : null;
   const profileId = currentSpec?.email === email ? currentSpec.id : null;
@@ -340,7 +395,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
   compareParams.set("view", "compare");
 
   const openComparison = async () => {
-    if (locked || comparisonLoading) return;
+    if (locked || comparisonLoading || targetError) return;
 
     if (conditionError) {
       setComparisonError(conditionError);
@@ -682,7 +737,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                 </button>
               </div>
 
-              {salaryConditions.map((condition) => {
+              {conditions.map((condition) => {
                 const selected = getSelectedOptions(condition, changes);
                 const summary =
                   condition.field === "EXPERIENCE"
@@ -740,6 +795,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   !hasChanges ||
                   !!conditionError ||
                   comparisonLoading ||
+                  targetError ||
                   simulationLoading ||
                   !!simulationError ||
                   !result?.simulated
@@ -751,6 +807,11 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   : "설정한 조건과 AI 추천 선택지 비교"}
                 <span aria-hidden="true">→</span>
               </button>
+              {targetError && (
+                <p role="alert" className="pb-4 text-[12px] text-red-500">
+                  저장된 목표 조건을 불러오지 못했습니다. 기존 목표가 잘못 저장되지 않도록 비교 기능을 제한했습니다. 새로고침 후 다시 시도해 주세요.
+                </p>
+              )}
               {conditionError && (
                 <p role="alert" className="pb-4 text-[12px] text-red-500">
                   {conditionError}
