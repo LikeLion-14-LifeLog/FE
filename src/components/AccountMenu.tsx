@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { requestLogout } from "@/apis/auth";
 import { logout, type CurrentUser } from "@/store/authStore";
 
 type MenuItemProps = {
@@ -79,15 +80,23 @@ export default function AccountMenu({ user }: AccountMenuProps) {
     };
   }, [open]);
 
+  /** 서버에 로그아웃을 알리고(결과와 무관하게) 로컬 세션은 바로 지운다 */
+  const signOut = () => {
+    requestLogout().catch(() => {
+      // 서버 로그아웃이 실패해도 이 기기에서는 로그아웃된 상태로 둔다
+    });
+    logout();
+  };
+
   const handleSwitchAccount = () => {
     setOpen(false);
-    logout();
+    signOut();
     navigate("/login");
   };
 
   const handleLogout = () => {
     setOpen(false);
-    logout();
+    signOut();
     navigate("/");
   };
 
