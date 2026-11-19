@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { getCareerRoutes, getCareerSalaryAnalytics } from "@/apis/careerPath";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getCareerGraph,
+  getCareerRoutes,
+  getCareerSalaryAnalytics,
+} from "@/apis/careerPath";
 import { toApiError } from "@/apis/client";
 import FilterDropdown from "@/pages/JobChance/components/FilterDropdown";
 import { MAJOR_FIELDS, MAJOR_FIELD_LABEL } from "@/constants/majorField";
 import { useCurrentUser } from "@/store/authStore";
 import type {
+  CareerGraphEdge,
   CareerRoutesData,
   CareerSalaryGroup,
   MajorField,
@@ -13,10 +18,12 @@ import {
   aggregateSalaryGroups,
   buildCareerRouteTree,
   getSourceOptions,
+  getYearlyObservations,
 } from "@/utils/careerRouteTree";
 import CareerPathGraph from "./components/CareerPathGraph";
 import ConditionChip from "./components/ConditionChip";
 import RouteSummaryPanel from "./components/RouteSummaryPanel";
+import type { YearlyObservationColumn } from "./components/YearlyObservationList";
 
 const COLUMN_TITLE =
   "text-[12.5px] leading-[18.75px] font-extrabold text-slate-600";
@@ -42,6 +49,9 @@ type SalaryResult =
 const SALARY_NOTICE =
   "연봉은 관측 연도에 보고된 연봉으로, 실제 이직 전후 연봉이나 초봉이 아닙니다. 소규모 그룹은 비공개되어 전공 계열을 합친 값은 공개된 그룹만의 가중 평균입니다.";
 
+/** 출발 직업코드별 연도 그래프 엣지 (fromCode 로 조회한 결과 캐시) */
+type GraphCache = Record<string, { edges: CareerGraphEdge[] } | { error: string }>;
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -54,6 +64,8 @@ const CareerPage = () => {
   const [firstJobId, setFirstJobId] = useState<string | null>(null);
   const [stepId, setStepId] = useState<string | null>(null);
   const [majorField, setMajorField] = useState<MajorFilter>(ALL_MAJORS);
+  const [graphs, setGraphs] = useState<GraphCache>({});
+  const requestedGraphs = useRef(new Set<string>());
 
   const token = useCurrentUser()?.accessToken ?? null;
   const [salaryResult, setSalaryResult] = useState<SalaryResult | null>(null);
@@ -137,6 +149,58 @@ const CareerPage = () => {
     return max > 0 ? max * 1.15 : 1;
   }, [tree]);
   const summary = stepId ? (tree?.summaries[stepId] ?? null) : null;
+
+  // 연도별 그래프는 출발 직업 단위로 필요할 때만 조회 (전체 그래프는 수백 KB)
+  useEffect(() => {
+    for (const code of [activeRoot, firstJobId]) {
+      if (!code || requestedGraphs.current.has(code)) continue;
+      requestedGraphs.current.add(code);
+      getCareerGraph({ fromCode: code })
+        .then(({ edges }) => setGraphs((prev) => ({ ...prev, [code]: { edges } })))
+        .catch((error: unknown) => {
+          // 실패한 코드는 다음 선택 때 다시 시도
+          requestedGraphs.current.delete(code);
+          setGraphs((prev) => ({
+            ...prev,
+            [code]: {
+              error:
+                toApiError(error).message ??
+                "연도별 관측 정보를 불러오지 못했습니다.",
+            },
+          }));
+        });
+    }
+  }, [activeRoot, firstJobId]);
+
+  const yearly = useMemo((): YearlyObservationColumn[] | undefined => {
+    const step = tree?.nextSteps.find(({ id }) => id === stepId);
+    const first = tree?.firstJobs.find(({ id }) => id === step?.parentId);
+    if (!tree || !step || !first || !activeRoot) return undefined;
+
+    const column = (
+      title: string,
+      fromName: string,
+      fromCode: string,
+      toName: string,
+      toCode: string,
+    ): YearlyObservationColumn => {
+      const graph = graphs[fromCode];
+      return {
+        title,
+        route: `${fromName} ➔ ${toName}`,
+        items:
+          graph && "edges" in graph
+            ? getYearlyObservations(graph.edges, fromCode, toCode)
+            : null,
+        error: graph && "error" in graph ? graph.error : undefined,
+      };
+    };
+
+    return [
+      column("1차 구간", tree.start.title, activeRoot, first.title, first.code),
+      column("2차 구간", first.title, first.code, step.title, step.code),
+    ];
+  }, [tree, stepId, activeRoot, graphs]);
 
   const handleSelectRoot = (code: string) => {
     setRootCode(code);
@@ -227,6 +291,7 @@ const CareerPage = () => {
           notice={`${load.data.notice ?? DEFAULT_NOTICE}${salaryGroups ? ` ${SALARY_NOTICE}` : ""}`}
           salaryScaleMax={salaryScaleMax}
           salaryMessage={salaryMessage}
+          yearly={yearly}
         />
       </div>
     </div>
