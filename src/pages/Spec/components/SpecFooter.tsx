@@ -1,5 +1,6 @@
 type Props = {
   saving: boolean;
+  starting: boolean;
   canDiagnose: boolean;
   onSave: () => void;
   onDiagnose: () => void;
@@ -7,6 +8,7 @@ type Props = {
 
 export default function SpecFooter({
   saving,
+  starting,
   canDiagnose,
   onSave,
   onDiagnose,
@@ -27,7 +29,7 @@ export default function SpecFooter({
           <button
             type="button"
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || starting}
             className="cursor-pointer rounded-lg border border-text-primary px-4 py-2.5 text-[12px] font-semibold text-text-primary transition-colors hover:bg-bg-page disabled:cursor-wait disabled:opacity-40"
           >
             {saving ? "저장 중..." : "프로필 저장"}
@@ -36,10 +38,10 @@ export default function SpecFooter({
           <button
             type="button"
             onClick={onDiagnose}
-            disabled={!canDiagnose || saving}
+            disabled={!canDiagnose || saving || starting}
             className="cursor-pointer rounded-lg bg-text-primary px-5 py-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-text-secondary disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted"
           >
-            이 스펙으로 진단하기 →
+            {starting ? "분석 시작 중..." : "이 스펙으로 진단하기 →"}
           </button>
         </div>
       </div>
