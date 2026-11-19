@@ -32,3 +32,60 @@ export type CareerRoutesData = {
   returnedRouteCount: number;
   routes: CareerRoute[];
 };
+
+/** 전공 계열 코드 */
+export type MajorField =
+  | "HUMANITIES"
+  | "SOCIAL_SCIENCES"
+  | "NATURAL_SCIENCES"
+  | "ENGINEERING"
+  | "MEDICINE_PHARMACY"
+  | "EDUCATION"
+  | "ARTS_PHYSICAL_EDUCATION"
+  | "UNKNOWN";
+
+/**
+ * GET /api/v1/career-paths/yearly/salary-analytics — 경로(출발→도착)·전공 계열별 연봉 통계.
+ * 연봉은 관측 연도에 보고된 연봉이며 실제 이직 전후 연봉이나 초봉이 아니다.
+ */
+export type CareerSalaryGroup = {
+  source: string;
+  target: string;
+  majorField: MajorField;
+  /** 분석에 포함된 관측 구간 수 */
+  segmentCount: number;
+  /** 출발 관측 연도 평균 연봉 (원) */
+  meanFromSalaryKrw: number;
+  /** 도착 관측 연도 평균 연봉 (원) */
+  meanToSalaryKrw: number;
+  medianFromSalaryKrw: number;
+  medianToSalaryKrw: number;
+  /** 평균 연봉 차이 (원) */
+  meanSalaryDifferenceKrw: number;
+  /** 평균 관측 연도 간격 (년) */
+  meanObservedYearGap: number;
+};
+
+export type CareerSalaryFilters = {
+  fromCode?: string;
+  toCode?: string;
+  majorField?: MajorField;
+};
+
+export type CareerSalaryAnalyticsData = {
+  metadata: {
+    source: string;
+    metric: string;
+    salaryUnit: string;
+    /** 이 값보다 작은 그룹은 비공개 */
+    minimumGroupSize: number;
+    respondentCount: number;
+    totalObservedChangedSegments: number;
+    releasedGroupCount: number;
+    suppressedSmallGroups: number;
+    majorFieldUnknown: string;
+  };
+  filters: { fromCode: string; toCode: string; majorField: string };
+  matchingGroupCount: number;
+  groups: CareerSalaryGroup[];
+};

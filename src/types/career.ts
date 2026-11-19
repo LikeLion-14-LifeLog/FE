@@ -1,3 +1,16 @@
+/** 경로(출발→도착) 연봉 통계 — 공개 그룹을 관측 구간 수로 가중 평균 (원) */
+export type RouteSalary = {
+  segmentCount: number;
+  meanFrom: number;
+  meanTo: number;
+  meanDifference: number;
+  /** 중앙값은 그룹 하나일 때만 (여러 그룹을 합치면 계산 불가) */
+  medianFrom: number | null;
+  medianTo: number | null;
+  /** 평균 관측 연도 간격 (년) */
+  meanYearGap: number;
+};
+
 /** 경로 지도 노드 공통 — 직업 이동 경로 API(routes) 한 건에서 만든다 */
 type CareerRouteNodeBase = {
   id: string;
@@ -11,6 +24,8 @@ type CareerRouteNodeBase = {
   observedSegments: number;
   /** 관측 연도 구간 수 */
   observedYearIntervals: number;
+  /** 이 노드로 들어오는 경로의 연봉 통계 (비로그인·비공개 그룹이면 없음) */
+  salary?: RouteSalary;
 };
 
 /** 커리어 경로 지도 — 1차 이동 직업 노드 */
@@ -45,6 +60,8 @@ export type RouteSummary = {
   share: number;
   /** 막대 아래 보조 설명 */
   caption: string;
+  /** 2차 이동 구간(1차 직업 → 2차 직업) 연봉 통계 — 있으면 연봉 중심으로 표시 */
+  salary?: RouteSalary;
   rows: RouteSummaryRow[];
 };
 
