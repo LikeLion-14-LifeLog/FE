@@ -14,7 +14,6 @@ import {
   type LoginState,
   type WelcomeState,
 } from "./validation";
-import { findNickname } from "./mockAccounts";
 import { login as saveLogin } from "@/store/authStore";
 import { login } from "@/apis/auth";
 import { toApiError } from "@/apis/client";
@@ -48,8 +47,9 @@ const LoginPage = () => {
     const trimmedEmail = email.trim();
     setLoading(true);
     let accessToken: string;
+    let nickname: string;
     try {
-      ({ accessToken } = await login({ email: trimmedEmail, password }));
+      ({ accessToken, nickname } = await login({ email: trimmedEmail, password }));
     } catch (error) {
       const { status } = toApiError(error);
       setLoginError(
@@ -66,9 +66,6 @@ const LoginPage = () => {
       setLoading(false);
     }
 
-    // 로그인 API는 닉네임을 주지 않으므로 가입 시 로컬에 저장한 닉네임을 쓰고,
-    // 없으면 이메일 앞부분으로 대신한다. TODO: 회원 정보 조회 API 연동 시 교체
-    const nickname = findNickname(trimmedEmail) ?? trimmedEmail.split("@")[0];
     const state: WelcomeState = { nickname, email: trimmedEmail };
     saveLogin({ ...state, accessToken }, keepLoggedIn);
     // 환영 페이지를 거친 뒤 원래 가려던 화면(redirect)으로 이어진다
