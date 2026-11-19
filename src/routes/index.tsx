@@ -50,15 +50,7 @@ const router = createBrowserRouter([
         },
       },
       { path: "/diagnosis/loading", element: <DiagnosisLoadingPage /> },
-      {
-        path: "/diagnosis/result",
-        element: <DiagnosisResultPage />,
-        handle: {
-          eyebrow: "SALARY DIAGNOSIS REPORT",
-          title: "내 조건 기반 예상 연봉 진단 결과",
-          description: "등록한 스펙을 바탕으로 분석 결과를 확인합니다.",
-        },
-      },
+      { path: "/diagnosis/result", element: <DiagnosisResultPage /> },
       {
         path: "/jobs",
         element: <JobChancePage />,
