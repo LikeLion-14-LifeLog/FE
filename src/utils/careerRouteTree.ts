@@ -7,6 +7,7 @@ import type {
   RouteSummaryRow,
 } from "@/types/career";
 import type {
+  CareerGraphEdge,
   CareerRoute,
   CareerSalaryGroup,
   MajorField,
@@ -228,4 +229,27 @@ function buildSummaryRows(
     },
     { label: "연봉 분석 구간 수", value: `${salary.segmentCount}구간` },
   ];
+}
+
+/** 한 경로(출발→도착)의 연도 구간별 관측 응답자 수 */
+export type YearlyObservation = {
+  fromYear: number;
+  toYear: number;
+  respondents: number;
+};
+
+/** 그래프 엣지에서 출발→도착 경로의 연도 구간만 골라 연도순으로 정렬 */
+export function getYearlyObservations(
+  edges: CareerGraphEdge[],
+  source: string,
+  target: string,
+): YearlyObservation[] {
+  return edges
+    .filter((edge) => edge.source === source && edge.target === target)
+    .map(({ fromYear, toYear, distinctRespondents }) => ({
+      fromYear,
+      toYear,
+      respondents: distinctRespondents,
+    }))
+    .sort((a, b) => a.fromYear - b.fromYear || a.toYear - b.toYear);
 }

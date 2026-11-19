@@ -1,6 +1,8 @@
 import { apiClient } from "@/apis/client";
 import type { ApiResponse } from "@/types/spec/api";
 import type {
+  CareerGraphData,
+  CareerPathCandidatesData,
   CareerRoutesData,
   CareerSalaryAnalyticsData,
   CareerSalaryFilters,
@@ -43,3 +45,44 @@ export async function getCareerSalaryAnalytics(
     throw new Error(data.message ?? "경로별 연봉 통계를 불러오지 못했습니다.");
   return data.data;
 }
+
+/**
+ * 연도별 커리어 경로 그래프 조회 (직업코드 노드 + 연도 구간별 변화 엣지).
+ * fromCode(4자리 직업코드)를 생략하면 전체 그래프(수백 KB)라 가급적 지정해서 부른다.
+ */
+export async function getCareerGraph(
+  options: { fromCode?: string; signal?: AbortSignal } = {},
+): Promise<CareerGraphData> {
+  const { fromCode, signal } = options;
+  const { data } = await apiClient.get<ApiResponse<CareerGraphData>>(
+    "/api/v1/career-paths/yearly/graph",
+    { params: fromCode ? { fromCode } : undefined, signal },
+  );
+  if (!data.success || !data.data)
+    throw new Error(data.message ?? "연도별 커리어 경로 그래프를 불러오지 못했습니다.");
+  return data.data;
+}
+
+/** 검증 전 탐색 데이터 상태 — 이 상태의 paths 는 공식 커리어 지도에 노출하지 않는다 */
+export const EXPLORATORY_NOT_VERIFIED = "EXPLORATORY_NOT_VERIFIED";
+
+/**
+ * 커리어 경로(직업코드 변화 후보) 목록 조회.
+ * 쿼리 파라미터는 명세 미확정(major·targetJob 을 보내도 filters 가 null 로 돌아옴)이라 받지 않는다.
+ * 현재 paths 는 항상 빈 배열이며, 경로 시각화는 getCareerRoutes / getCareerGraph 를 쓴다.
+ */
+export async function getCareerPathCandidates(
+  options: { signal?: AbortSignal } = {},
+): Promise<CareerPathCandidatesData> {
+  const { data } = await apiClient.get<ApiResponse<CareerPathCandidatesData>>(
+    "/api/v1/career-paths",
+    { signal: options.signal },
+  );
+  if (!data.success || !data.data)
+    throw new Error(data.message ?? "커리어 경로 목록을 불러오지 못했습니다.");
+  return data.data;
+}
+
+/** 검증된 상태이고 경로가 있을 때만 화면에 노출 가능 */
+export const isPublishableCareerPaths = (data: CareerPathCandidatesData) =>
+  data.dataStatus !== EXPLORATORY_NOT_VERIFIED && data.paths.length > 0;

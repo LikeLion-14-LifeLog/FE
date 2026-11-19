@@ -6,6 +6,9 @@ import type {
 import { formatManwonDiff } from "@/utils/careerRouteTree";
 import GraphBar from "./GraphBar";
 import CurriculumLinkButton from "./CurriculumLinkButton";
+import YearlyObservationList, {
+  type YearlyObservationColumn,
+} from "./YearlyObservationList";
 
 type RouteSummaryPanelProps = {
   /** 아직 2차 경로를 고르지 않았으면 null → 칸은 유지하고 값만 비움 */
@@ -16,6 +19,8 @@ type RouteSummaryPanelProps = {
   salaryScaleMax: number;
   /** 연봉 통계를 못 보여줄 때 안내 (예: 로그인 필요) */
   salaryMessage?: string;
+  /** 선택 경로의 연도별 관측 변화 (경로 선택 전이면 없음) */
+  yearly?: YearlyObservationColumn[];
   /** 없으면 상세 보기 버튼 비활성화 */
   onDetailClick?: () => void;
 };
@@ -98,6 +103,7 @@ const RouteSummaryPanel = ({
   notice,
   salaryScaleMax,
   salaryMessage,
+  yearly,
   onDetailClick,
 }: RouteSummaryPanelProps) => {
   const rows: RouteSummaryRow[] =
@@ -163,6 +169,8 @@ const RouteSummaryPanel = ({
           </div>
         ))}
       </dl>
+
+      {summary && yearly && <YearlyObservationList columns={yearly} />}
 
       {notice && (
         <p className="mt-5 rounded-[8px] bg-slate-50 px-3 py-2.5 text-[11.5px] leading-[17.25px] text-slate-500">

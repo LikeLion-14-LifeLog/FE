@@ -89,3 +89,65 @@ export type CareerSalaryAnalyticsData = {
   matchingGroupCount: number;
   groups: CareerSalaryGroup[];
 };
+
+/** GET /api/v1/career-paths/yearly/graph — 직업코드 노드 */
+export type CareerGraphNode = {
+  id: string;
+  code: string;
+  /** 화면 표시용 직업명 (분류표에 없으면 "직업코드 0000") */
+  label: string;
+};
+
+/** 연도 구간별 관측 직업코드 변화 (실제 이직·승진 아님) */
+export type CareerGraphEdge = {
+  /** "출발|도착|fromYear|toYear" */
+  id: string;
+  source: string;
+  target: string;
+  fromYear: number;
+  toYear: number;
+  /** 해당 코드·연도 조합의 중복 제거 응답자 수 */
+  distinctRespondents: number;
+  verifiedFirstJobChange: boolean;
+};
+
+export type CareerGraphData = {
+  dataStatus: string;
+  notice: string;
+  classification: string;
+  jobNameReferenceYear: number;
+  verifiedFirstJobChange: boolean;
+  respondentCount: number;
+  filters: { fromCode: string };
+  nodes: CareerGraphNode[];
+  edges: CareerGraphEdge[];
+  nodeCount: number;
+  edgeCount: number;
+};
+
+/**
+ * GET /api/v1/career-paths — 직업코드 변화 후보 경로 (탐색적 집계, 첫 취업·첫 이직 검증 안 됨).
+ * paths 항목 구조는 아직 정의되지 않아 unknown 으로 둔다 (현재 항상 빈 배열).
+ */
+export type CareerPathCandidatesData = {
+  title: string;
+  /** 현재 "EXPLORATORY_NOT_VERIFIED" — 검증된 커리어 경로로 표현 금지 */
+  dataStatus: string;
+  notice: string;
+  filters: {
+    major: string | null;
+    targetJob: string | null;
+    observationYears: string;
+  };
+  paths: unknown[];
+  auditSummary: {
+    source: string;
+    rawJobObservations: number;
+    distinctRespondents: number;
+    candidateObservationPairs: number;
+    distinctOccupationCodePairs: number;
+    publishedPathsAtMinCell5: number;
+    minimumCellSize: number;
+    interpretation: string;
+  };
+};
