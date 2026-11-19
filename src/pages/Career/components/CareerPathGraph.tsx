@@ -3,6 +3,7 @@ import type {
   FirstJobNode,
   NextStepNode,
 } from "@/types/career";
+import { formatManwon, formatManwonDiff } from "@/utils/careerRouteTree";
 import CareerNode from "./CareerNode";
 
 type CareerPathGraphProps = {
@@ -284,19 +285,23 @@ const CareerPathGraph = ({
               <span
                 className={`shrink-0 text-[11.4px] font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
               >
-                {i === 0 && "최다 이동"}
+                {formatPercent(job.share)}
+                {i === 0 && " (최다)"}
               </span>
             </span>
             <span
               className={`mt-1 text-[14px] font-bold ${active ? "text-teal-600" : "text-slate-700"}`}
             >
-              이동 비율 {formatPercent(job.share)}
+              {job.salary
+                ? `평균 연봉 ${formatManwon(job.salary.meanTo)}`
+                : `관측 ${job.observedSegments}구간`}
             </span>
             <span
               className={`mt-0.5 text-[10.9px] ${active ? "font-bold text-slate-500" : "text-slate-400"}`}
             >
-              관측 {job.observedSegments}구간 · {job.observedYearIntervals}개
-              연도 구간
+              {job.salary
+                ? `관측 ${job.observedSegments}구간 · 출발 대비 ${formatManwonDiff(job.salary.meanDifference)}`
+                : `${job.observedYearIntervals}개 연도 구간에서 관측`}
             </span>
           </CareerNode>
         );
@@ -340,8 +345,9 @@ const CareerPathGraph = ({
                   {formatPercent(step.share)}
                 </span>
                 <span className="text-[11.9px] font-bold text-teal-700">
-                  관측 {step.observedSegments}구간 ·{" "}
-                  {step.observedYearIntervals}개 연도 구간
+                  {step.salary
+                    ? `평균 ${formatManwon(step.salary.meanTo)} (${formatManwonDiff(step.salary.meanDifference)})`
+                    : `관측 ${step.observedSegments}구간 · ${step.observedYearIntervals}개 연도 구간`}
                 </span>
               </>
             ) : (
@@ -355,7 +361,9 @@ const CareerPathGraph = ({
                 <span className="mt-0.5 text-[12.9px] font-bold text-slate-700">
                   {formatPercent(step.share)}{" "}
                   <span className="text-[10.9px] text-slate-500">
-                    (관측 {step.observedSegments}구간)
+                    {step.salary
+                      ? `· 평균 ${formatManwon(step.salary.meanTo)}`
+                      : `(관측 ${step.observedSegments}구간)`}
                   </span>
                 </span>
               </>

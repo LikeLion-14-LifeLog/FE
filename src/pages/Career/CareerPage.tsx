@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { getCareerRoutes } from "@/apis/careerPath";
+import { getCareerRoutes, getCareerSalaryAnalytics } from "@/apis/careerPath";
 import { toApiError } from "@/apis/client";
 import FilterDropdown from "@/pages/JobChance/components/FilterDropdown";
-import type { CareerRoutesData } from "@/types/careerRoute";
-import { buildCareerRouteTree, getSourceOptions } from "@/utils/careerRouteTree";
+import { MAJOR_FIELDS, MAJOR_FIELD_LABEL } from "@/constants/majorField";
+import { useCurrentUser } from "@/store/authStore";
+import type {
+  CareerRoutesData,
+  CareerSalaryGroup,
+  MajorField,
+} from "@/types/careerRoute";
+import {
+  aggregateSalaryGroups,
+  buildCareerRouteTree,
+  getSourceOptions,
+} from "@/utils/careerRouteTree";
 import CareerPathGraph from "./components/CareerPathGraph";
 import ConditionChip from "./components/ConditionChip";
 import RouteSummaryPanel from "./components/RouteSummaryPanel";
@@ -17,6 +27,21 @@ const DEFAULT_ROOT_CODE = "1332";
 const DEFAULT_NOTICE =
   "이동 비율은 실제 이직 확률이 아니라 관측된 직업코드 변경 구간의 비율입니다.";
 
+const ALL_MAJORS = "ALL";
+type MajorFilter = MajorField | typeof ALL_MAJORS;
+const MAJOR_OPTIONS: { value: MajorFilter; label: string }[] = [
+  { value: ALL_MAJORS, label: "전체 계열" },
+  ...MAJOR_FIELDS.map((value) => ({ value, label: MAJOR_FIELD_LABEL[value] })),
+];
+
+/** 연봉 통계 응답 — 어떤 토큰으로 받은 결과인지 함께 보관 (로그인 사용자가 바뀌면 다시 조회) */
+type SalaryResult =
+  | { token: string; groups: CareerSalaryGroup[] }
+  | { token: string; error: string };
+
+const SALARY_NOTICE =
+  "연봉은 관측 연도에 보고된 연봉으로, 실제 이직 전후 연봉이나 초봉이 아닙니다. 소규모 그룹은 비공개되어 전공 계열을 합친 값은 공개된 그룹만의 가중 평균입니다.";
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -28,6 +53,27 @@ const CareerPage = () => {
   // 1차 이동 직업 → 2차 경로 순서로 선택 (처음엔 아무것도 선택 안 됨)
   const [firstJobId, setFirstJobId] = useState<string | null>(null);
   const [stepId, setStepId] = useState<string | null>(null);
+  const [majorField, setMajorField] = useState<MajorFilter>(ALL_MAJORS);
+
+  const token = useCurrentUser()?.accessToken ?? null;
+  const [salaryResult, setSalaryResult] = useState<SalaryResult | null>(null);
+
+  // 연봉 통계는 로그인 필요 — 전체 그룹을 한 번 받아 전공 계열·경로별로 클라이언트에서 합친다
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    getCareerSalaryAnalytics({ signal: controller.signal })
+      .then(({ groups }) => setSalaryResult({ token, groups }))
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setSalaryResult({
+          token,
+          error:
+            toApiError(error).message ?? "경로별 연봉 통계를 불러오지 못했습니다.",
+        });
+      });
+    return () => controller.abort();
+  }, [token]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,10 +100,42 @@ const CareerPage = () => {
     (sourceOptions.some(({ code }) => code === DEFAULT_ROOT_CODE)
       ? DEFAULT_ROOT_CODE
       : (sourceOptions[0]?.code ?? null));
-  const tree = useMemo(
-    () => (data && activeRoot ? buildCareerRouteTree(data.routes, activeRoot) : null),
-    [data, activeRoot],
+  const salaryGroups =
+    token && salaryResult?.token === token && "groups" in salaryResult
+      ? salaryResult.groups
+      : null;
+  const salaryMessage = !token
+    ? "로그인하면 경로별 관측 연봉 통계를 함께 볼 수 있습니다."
+    : salaryResult?.token !== token
+      ? "경로별 연봉 통계를 불러오는 중입니다..."
+      : "error" in salaryResult
+        ? salaryResult.error
+        : undefined;
+  const salaries = useMemo(
+    () =>
+      salaryGroups
+        ? aggregateSalaryGroups(
+            salaryGroups,
+            majorField === ALL_MAJORS ? null : majorField,
+          )
+        : undefined,
+    [salaryGroups, majorField],
   );
+  const tree = useMemo(
+    () =>
+      data && activeRoot
+        ? buildCareerRouteTree(data.routes, activeRoot, salaries)
+        : null,
+    [data, activeRoot, salaries],
+  );
+  /** 연봉 막대 최대 눈금 — 지금 트리에서 가장 높은 도착 연봉보다 조금 크게 */
+  const salaryScaleMax = useMemo(() => {
+    const max = Math.max(
+      0,
+      ...(tree?.nextSteps ?? []).map(({ salary }) => salary?.meanTo ?? 0),
+    );
+    return max > 0 ? max * 1.15 : 1;
+  }, [tree]);
   const summary = stepId ? (tree?.summaries[stepId] ?? null) : null;
 
   const handleSelectRoot = (code: string) => {
@@ -108,6 +186,16 @@ const CareerPage = () => {
             menuWidth={280}
           />
         </div>
+        {salaryGroups && (
+          <div className="relative z-20 mr-2 self-center">
+            <FilterDropdown<MajorFilter>
+              label="전공"
+              options={MAJOR_OPTIONS}
+              value={majorField}
+              onChange={setMajorField}
+            />
+          </div>
+        )}
         <ConditionChip
           items={conditions}
           className="relative z-10 shrink-0 bg-white"
@@ -136,7 +224,9 @@ const CareerPage = () => {
         {/* TODO: 경로 상세 API 연동 후 onDetailClick 연결 (/career/:routeId) */}
         <RouteSummaryPanel
           summary={summary}
-          notice={load.data.notice ?? DEFAULT_NOTICE}
+          notice={`${load.data.notice ?? DEFAULT_NOTICE}${salaryGroups ? ` ${SALARY_NOTICE}` : ""}`}
+          salaryScaleMax={salaryScaleMax}
+          salaryMessage={salaryMessage}
         />
       </div>
     </div>
