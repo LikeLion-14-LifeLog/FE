@@ -1,3 +1,5 @@
+import { apiClient } from "@/apis/client";
+import type { ApiResponse } from "@/types/spec/api";
 import type { SalaryChanges, SalaryConditionOption } from "@/types/salary";
 import type { Education } from "@/types/spec/education";
 import type { SpecProfileDraft } from "@/apis/spec";
@@ -6,6 +8,10 @@ import type {
   SalaryApiChanges,
   SalaryCompanyScale,
   SalarySimulationRequest,
+  SalarySimulationData,
+  SalaryTargetSaveRequest,
+  SalaryTargetSaveData,
+  SalaryTargetData,
 } from "@/types/salaryApi";
 
 const academicTypes = [
@@ -309,4 +315,45 @@ export function validateSalaryAdditions(
     }
   }
   return null;
+}
+
+/** 조건 변경 결과는 저장하지 않고 요청 시마다 새로 계산한다. */
+export async function simulateSalary(
+  request: SalarySimulationRequest,
+): Promise<SalarySimulationData> {
+  const { data: response } = await apiClient.post<ApiResponse<SalarySimulationData>>(
+    "/api/spec-profile/simulation",
+    request,
+    { timeout: 120_000 },
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.message || "연봉 시뮬레이션에 실패했습니다.");
+  }
+  return response.data;
+}
+
+/** 사용자 목표와 AI 추천 대안 2개를 저장한다. */
+export async function saveSalaryTarget(
+  request: SalaryTargetSaveRequest,
+): Promise<SalaryTargetSaveData> {
+  const { data: response } = await apiClient.put<ApiResponse<SalaryTargetSaveData>>(
+    "/api/spec-profile/target",
+    request,
+    { timeout: 120_000 },
+  );
+  if (!response.success || !response.data) {
+    throw new Error(response.message || "목표 스펙 저장에 실패했습니다.");
+  }
+  return response.data;
+}
+
+/** 선택된 목표가 없다면 null을 반환한다. */
+export async function getSalaryTarget(): Promise<SalaryTargetData | null> {
+  const { data: response } = await apiClient.get<ApiResponse<SalaryTargetData | null>>(
+    "/api/spec-profile/target",
+  );
+  if (!response.success) {
+    throw new Error(response.message || "목표 스펙 조회에 실패했습니다.");
+  }
+  return response.data;
 }
