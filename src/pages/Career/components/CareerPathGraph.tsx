@@ -17,18 +17,22 @@ type CareerPathGraphProps = {
   onSelectStep: (id: string) => void;
 };
 
-/* ---------- 레이아웃 (Figma 951 × 560 기준) ---------- */
+/* ---------- 레이아웃 (Figma 951 × 560 기준, 노드 수에 따라 세로 길이 조정) ---------- */
 const GRAPH_WIDTH = 951;
-const GRAPH_HEIGHT = 560;
+/** 노드가 적을 때도 유지하는 최소 높이 */
+const MIN_GRAPH_HEIGHT = 560;
 
 const START = { x: 10, width: 188, height: 93 };
 const COL2 = { x: 357, width: 257, height: 83 };
 const COL3 = { x: 684, width: 257, jumpHeight: 91, stayHeight: 59 };
-/** 1차 노드 세로 중심 시작점과 간격 */
-const COL2_FIRST_CENTER = 106.5;
-const COL2_GAP = 163.5;
-/** 같은 부모 아래 2차 노드끼리의 세로 간격 */
-const COL3_GAP = 83;
+/** 그래프 위쪽 여백 */
+const TOP_PADDING = 24;
+/** 하단 안내 문구 영역 */
+const HINT_SPACE = 48;
+/** 1차 노드 묶음(1차 노드 + 딸린 2차 노드들) 사이 간격 */
+const GROUP_GAP = 28;
+/** 같은 부모 아래 2차 노드끼리의 간격 */
+const COL3_GAP = 10;
 const GUIDE_XS = [277.5, 649];
 
 const COLOR = {
@@ -43,7 +47,7 @@ const COLOR = {
 /** 선 그리기 애니메이션용 대시 길이 (index.css career-draw 와 동일, 가장 긴 선보다 길어야 함) */
 const DRAW_LENGTH = 1000;
 
-const formatWon = (value: number) => value.toLocaleString("ko-KR");
+const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 const curve = (x1: number, y1: number, x2: number, y2: number) => {
   const mx = (x1 + x2) / 2;
@@ -70,24 +74,64 @@ const CareerPathGraph = ({
   onSelectFirstJob,
   onSelectStep,
 }: CareerPathGraphProps) => {
-  const startCenterY = COL2_FIRST_CENTER + COL2_GAP;
+  // 1차 노드마다 [1차 노드 높이, 2차 노드 묶음 높이] 중 큰 값만큼 세로 공간을 잡고 차례로 쌓는다
+  const groups = firstJobs.map((job) => {
+    const children = nextSteps
+      .filter((step) => step.parentId === job.id)
+      .map((step) => ({
+        step,
+        height: step.variant === "jump" ? COL3.jumpHeight : COL3.stayHeight,
+      }));
+    const childrenHeight =
+      children.reduce((sum, { height }) => sum + height, 0) +
+      COL3_GAP * Math.max(0, children.length - 1);
+    return { job, children, height: Math.max(COL2.height, childrenHeight) };
+  });
+
+  const contentHeight =
+    groups.reduce((sum, { height }) => sum + height, 0) +
+    GROUP_GAP * Math.max(0, groups.length - 1);
+  const graphHeight = Math.max(
+    MIN_GRAPH_HEIGHT,
+    TOP_PADDING + Math.max(contentHeight, START.height) + HINT_SPACE,
+  );
+  // 노드가 적으면 남는 공간 가운데에 배치
+  const contentTop =
+    TOP_PADDING +
+    (graphHeight - TOP_PADDING - HINT_SPACE - Math.max(contentHeight, START.height)) / 2;
+
+  const startCenterY = contentTop + Math.max(contentHeight, START.height) / 2;
   const startAnchor: [number, number] = [START.x + START.width, startCenterY];
 
-  const firstJobLayout = firstJobs.map((job, i) => ({
-    job,
-    centerY: COL2_FIRST_CENTER + COL2_GAP * i,
-  }));
+  const firstJobLayout: { job: FirstJobNode; centerY: number }[] = [];
+  const nextStepLayout: {
+    step: NextStepNode;
+    parentCenterY: number;
+    centerY: number;
+    height: number;
+  }[] = [];
 
-  const nextStepLayout = firstJobLayout.flatMap(({ job, centerY }) =>
-    nextSteps
-      .filter((step) => step.parentId === job.id)
-      .map((step, k) => ({
-        step,
+  let groupTop = contentTop;
+  for (const { job, children, height } of groups) {
+    const centerY = groupTop + height / 2;
+    firstJobLayout.push({ job, centerY });
+
+    const childrenHeight =
+      children.reduce((sum, child) => sum + child.height, 0) +
+      COL3_GAP * Math.max(0, children.length - 1);
+    let childTop = centerY - childrenHeight / 2;
+    for (const child of children) {
+      nextStepLayout.push({
+        step: child.step,
         parentCenterY: centerY,
-        centerY: centerY + COL3_GAP * k,
-        height: step.variant === "jump" ? COL3.jumpHeight : COL3.stayHeight,
-      }))
-  );
+        centerY: childTop + child.height / 2,
+        height: child.height,
+      });
+      childTop += child.height + COL3_GAP;
+    }
+
+    groupTop += height + GROUP_GAP;
+  }
 
   // 모든 경로는 회색으로 깔고, 선택한 경로만 teal 로 덮어 그림
   const edges: Edge[] = [
@@ -112,21 +156,21 @@ const CareerPathGraph = ({
   const activeEdges = edges.filter((edge) => edge.active);
 
   const hint = !selectedFirstJobId
-    ? "1차 취업 진입군을 먼저 선택하세요"
+    ? "1차 이동 직업을 먼저 선택하세요"
     : !selectedStepId
-      ? "이어지는 2차 이직/성장 궤적을 선택하세요"
+      ? "이어지는 2차 이동 직업을 선택하세요"
       : "다른 노드를 클릭하면 우측 정보가 전환됩니다";
 
   return (
     <div
       className="relative shrink-0"
-      style={{ width: GRAPH_WIDTH, height: GRAPH_HEIGHT }}
+      style={{ width: GRAPH_WIDTH, height: graphHeight }}
     >
       <svg
         className="absolute inset-0"
         width={GRAPH_WIDTH}
-        height={GRAPH_HEIGHT}
-        viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
+        height={graphHeight}
+        viewBox={`0 0 ${GRAPH_WIDTH} ${graphHeight}`}
         fill="none"
         aria-hidden
       >
@@ -136,7 +180,7 @@ const CareerPathGraph = ({
             x1={x}
             x2={x}
             y1={12}
-            y2={517}
+            y2={graphHeight - 43}
             stroke={COLOR.guide}
             strokeWidth={1.5}
           />
@@ -230,28 +274,29 @@ const CareerPathGraph = ({
             borderWidth={active ? 1.8 : 1}
             bgColor={active ? COLOR.mint : "#ffffff"}
           >
-            <span className="flex items-center justify-between">
+            <span className="flex items-center justify-between gap-2">
               <span
-                className={`text-[13.9px] font-bold ${active ? "text-slate-900" : "text-slate-700"}`}
+                className={`truncate text-[13.9px] font-bold ${active ? "text-slate-900" : "text-slate-700"}`}
+                title={job.title}
               >
                 {job.title}
               </span>
               <span
-                className={`text-[11.4px] font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
+                className={`shrink-0 text-[11.4px] font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
               >
-                {job.share}%{i === 0 && " (최다 이동)"}
+                {i === 0 && "최다 이동"}
               </span>
             </span>
             <span
               className={`mt-1 text-[14px] font-bold ${active ? "text-teal-600" : "text-slate-700"}`}
             >
-              초봉 {formatWon(job.salary)}만 원
+              이동 비율 {formatPercent(job.share)}
             </span>
             <span
               className={`mt-0.5 text-[10.9px] ${active ? "font-bold text-slate-500" : "text-slate-400"}`}
             >
-              {job.entrants}명 진입
-              {i === 0 ? ` (${job.note})` : ` · ${job.note}`}
+              관측 {job.observedSegments}구간 · {job.observedYearIntervals}개
+              연도 구간
             </span>
           </CareerNode>
         );
@@ -261,11 +306,6 @@ const CareerPathGraph = ({
       {nextStepLayout.map(({ step, centerY, height }) => {
         const active = step.id === selectedStepId;
         const selectable = step.parentId === selectedFirstJobId;
-        const parent = firstJobs.find((job) => job.id === step.parentId);
-        const rise = parent ? step.salary - parent.salary : 0;
-        const risePercent = parent
-          ? Math.round((rise / parent.salary) * 100)
-          : 0;
 
         return (
           <CareerNode
@@ -283,35 +323,40 @@ const CareerPathGraph = ({
           >
             {step.variant === "jump" ? (
               <>
-                <span className="flex items-center justify-between">
-                  <span className="text-[14.4px] font-bold text-slate-900">
+                <span className="flex items-center justify-between gap-2">
+                  <span
+                    className="truncate text-[14.4px] font-bold text-slate-900"
+                    title={step.title}
+                  >
                     {step.title}
                   </span>
                   {step.badge && (
-                    <span className="text-[11.4px] font-bold text-teal-700">
+                    <span className="shrink-0 text-[11.4px] font-bold text-teal-700">
                       {step.badge}
                     </span>
                   )}
                 </span>
                 <span className="text-[19.8px] font-bold text-teal-600">
-                  {formatWon(step.salary)}만 원
+                  {formatPercent(step.share)}
                 </span>
                 <span className="text-[11.9px] font-bold text-teal-700">
-                  ▲ +{risePercent}% (+{formatWon(rise)}만 상승)
+                  관측 {step.observedSegments}구간 ·{" "}
+                  {step.observedYearIntervals}개 연도 구간
                 </span>
               </>
             ) : (
               <>
-                <span className="text-[12.9px] font-bold text-slate-700">
+                <span
+                  className="truncate text-[12.9px] font-bold text-slate-700"
+                  title={step.title}
+                >
                   {step.title}
                 </span>
                 <span className="mt-0.5 text-[12.9px] font-bold text-slate-700">
-                  {formatWon(step.salary)}만 원{" "}
-                  {step.note && (
-                    <span className="text-[10.9px] text-slate-500">
-                      ({step.note})
-                    </span>
-                  )}
+                  {formatPercent(step.share)}{" "}
+                  <span className="text-[10.9px] text-slate-500">
+                    (관측 {step.observedSegments}구간)
+                  </span>
                 </span>
               </>
             )}
