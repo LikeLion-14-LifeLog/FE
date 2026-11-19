@@ -56,11 +56,7 @@ export type RouteSummaryRow = {
 /** 우측 패널 — 선택한 이동 경로 요약 */
 export type RouteSummary = {
   title: string;
-  /** 1차 직업 기준 2차 이동 비율 (%) — 패널 메인 수치 */
-  share: number;
-  /** 막대 아래 보조 설명 */
-  caption: string;
-  /** 2차 이동 구간(1차 직업 → 2차 직업) 연봉 통계 — 있으면 연봉 중심으로 표시 */
+  /** 2차 이동 구간(1차 직업 → 2차 직업) 연봉 통계 — 없으면 연봉 칸을 비워 둔다 */
   salary?: RouteSalary;
   rows: RouteSummaryRow[];
 };

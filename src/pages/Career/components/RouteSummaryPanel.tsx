@@ -17,8 +17,6 @@ type RouteSummaryPanelProps = {
   notice?: string;
   /** 연봉 막대 최대 눈금 (원) */
   salaryScaleMax: number;
-  /** 연봉 통계를 못 보여줄 때 안내 (예: 로그인 필요) */
-  salaryMessage?: string;
   /** 선택 경로의 연도별 관측 변화 (경로 선택 전이면 없음) */
   yearly?: YearlyObservationColumn[];
   /** 없으면 상세 보기 버튼 비활성화 */
@@ -34,34 +32,43 @@ const TONE_CLASS: Record<NonNullable<RouteSummaryRow["tone"]>, string> = {
 const EMPTY = "-";
 /** 경로 선택 전 표시할 항목 이름 */
 const EMPTY_ROW_LABELS = [
-  "전체 경로",
-  "이동 비율 (1차 / 2차)",
-  "관측 구간 수 (1차 / 2차)",
-  "관측 연도 구간 (1차 / 2차)",
+  "이동 전 평균 연봉",
+  "평균 이동 간격",
+  "이동 비율",
+  "동일 기업 근속 대비",
+  "주요 평가 기준",
 ];
 
 const toManwon = (krw: number) =>
   Math.round(krw / 10_000).toLocaleString("ko-KR");
 
-/** 2차 이동 구간의 출발·도착 관측 연도 평균 연봉 */
+/**
+ * 2차 이동 구간(1차 직업 → 2차 직업)의 이동 전·후 평균 연봉.
+ * 관측 연도 연봉이라 "초봉"·"이직 후 연봉"·"예상" 같은 표현은 쓰지 않는다.
+ * salary 가 없으면(비로그인·비공개 그룹·경로 선택 전) 칸은 유지하고 값만 비운다.
+ */
 const SalarySection = ({
   salary,
   scaleMax,
 }: {
-  salary: RouteSalary;
+  salary: RouteSalary | undefined;
   scaleMax: number;
 }) => {
-  const fillPercent = Math.min(100, (salary.meanTo / scaleMax) * 100);
-  const risePercent = ((salary.meanDifference / salary.meanFrom) * 100).toFixed(1);
+  const fillPercent = salary
+    ? Math.min(100, (salary.meanTo / scaleMax) * 100)
+    : 0;
+  const risePercent = salary
+    ? ((salary.meanDifference / salary.meanFrom) * 100).toFixed(1)
+    : "";
 
   return (
     <section className="mb-3 border-y border-slate-100 pt-4 pb-5">
       <p className="pb-1.5 text-[12px] leading-[18px] font-bold text-slate-500">
-        도착 직업 관측 평균 연봉
+        이동 후 평균 연봉
       </p>
       <p className="flex h-16 items-center pb-3 font-extrabold tracking-[-0.38px] text-slate-900">
         <span className="text-[38px] leading-[38px]">
-          {toManwon(salary.meanTo)}
+          {salary ? toManwon(salary.meanTo) : EMPTY}
         </span>
         <span className="ml-2 text-[18px] leading-[18px] font-bold text-slate-600">
           만 원
@@ -70,10 +77,11 @@ const SalarySection = ({
 
       <div className="relative">
         <p
-          className="h-[14px] min-w-max text-center text-[11.5px] font-bold tracking-[-0.17px] text-teal-600"
+          className="h-[14px] text-center text-[11.5px] font-bold tracking-[-0.17px] text-teal-600"
           style={{ width: `${fillPercent}%` }}
         >
-          평균 차이 {formatManwonDiff(salary.meanDifference)} 원 ({risePercent}%)
+          {salary &&
+            `${formatManwonDiff(salary.meanDifference)} 원 ${salary.meanDifference >= 0 ? "상승" : "하락"} (${Number(risePercent) >= 0 ? "+" : ""}${risePercent}%)`}
         </p>
         <GraphBar
           className="my-1.5"
@@ -84,14 +92,16 @@ const SalarySection = ({
         />
         <div className="relative h-[17.25px] text-[11.5px] leading-[17.25px]">
           <span className="absolute left-0 text-slate-500">
-            출발 {toManwon(salary.meanFrom)}만
+            이동 전 {salary ? `${toManwon(salary.meanFrom)}만` : EMPTY}
           </span>
-          <span
-            className="absolute -translate-x-full font-bold tracking-[-0.17px] text-teal-700"
-            style={{ left: `${fillPercent}%` }}
-          >
-            {toManwon(salary.meanTo)}만
-          </span>
+          {salary && (
+            <span
+              className="absolute -translate-x-full font-bold tracking-[-0.17px] text-teal-700"
+              style={{ left: `${fillPercent}%` }}
+            >
+              {toManwon(salary.meanTo)}만
+            </span>
+          )}
         </div>
       </div>
     </section>
@@ -102,13 +112,11 @@ const RouteSummaryPanel = ({
   summary,
   notice,
   salaryScaleMax,
-  salaryMessage,
   yearly,
   onDetailClick,
 }: RouteSummaryPanelProps) => {
   const rows: RouteSummaryRow[] =
     summary?.rows ?? EMPTY_ROW_LABELS.map((label) => ({ label, value: EMPTY }));
-  const fillPercent = summary ? Math.min(100, summary.share) : 0;
 
   return (
     <aside className="flex min-h-[680px] w-[440px] shrink-0 flex-col">
@@ -119,40 +127,7 @@ const RouteSummaryPanel = ({
         {summary?.title ?? EMPTY}
       </h2>
 
-      {summary?.salary ? (
-        <SalarySection salary={summary.salary} scaleMax={salaryScaleMax} />
-      ) : (
-        <section className="mb-3 border-y border-slate-100 pt-4 pb-5">
-          <p className="pb-1.5 text-[12px] leading-[18px] font-bold text-slate-500">
-            관측 이동 비율
-          </p>
-          <p className="flex h-16 items-center pb-3 font-extrabold tracking-[-0.38px] text-slate-900">
-            <span className="text-[38px] leading-[38px]">
-              {summary ? summary.share.toFixed(1) : EMPTY}
-            </span>
-            <span className="ml-2 text-[18px] leading-[18px] font-bold text-slate-600">
-              %
-            </span>
-          </p>
-
-          <GraphBar
-            className="my-1.5"
-            percent={fillPercent}
-            height={6}
-            color="#0d9488"
-            trackColor="#e2e8f0"
-          />
-          <p className="h-[17.25px] text-[11.5px] leading-[17.25px] text-slate-500">
-            {summary?.caption ?? EMPTY}
-          </p>
-        </section>
-      )}
-
-      {salaryMessage && (
-        <p className="mb-3 text-[11.5px] leading-[17.25px] font-bold text-teal-700">
-          {salaryMessage}
-        </p>
-      )}
+      <SalarySection salary={summary?.salary} scaleMax={salaryScaleMax} />
 
       <dl className="flex flex-col gap-2.5">
         {rows.map(({ label, value, tone = "default" }, i) => (

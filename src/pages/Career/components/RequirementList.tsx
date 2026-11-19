@@ -25,6 +25,9 @@ const RequirementList = ({
         </span>
         {title}
       </p>
+      {items.length === 0 && (
+        <p className="pl-1.5 text-[13px] leading-[19.5px] text-slate-300">-</p>
+      )}
       <ul className="flex flex-col gap-2 pl-1.5">
         {items.map((item, i) => (
           <li
