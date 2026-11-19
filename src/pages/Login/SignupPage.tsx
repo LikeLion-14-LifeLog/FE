@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getRedirect, withRedirect } from "@/utils/redirect";
 import AuthBackground from "./components/AuthBackground";
@@ -11,9 +11,12 @@ import {
   MESSAGES,
   isValidEmail,
   isValidPassword,
+  NICKNAME_MAX_LENGTH,
   type LoginState,
 } from "./validation";
-import { isRegistered, saveAccount } from "./mockAccounts";
+import { checkEmailAvailable, signup } from "@/apis/auth";
+import { toApiError } from "@/apis/client";
+import { TERM_IDS } from "@/constants/terms";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -26,16 +29,49 @@ const SignupPage = () => {
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  /** 서버에서 409(이미 가입된 이메일)를 받은 이메일 */
+  const [duplicatedEmail, setDuplicatedEmail] = useState<string>();
+  /** 중복 확인 API에서 사용 가능하다고 받은 이메일 */
+  const [availableEmail, setAvailableEmail] = useState<string>();
+  const emailCheckRef = useRef<AbortController | null>(null);
+  useEffect(() => () => emailCheckRef.current?.abort(), []);
 
-  const nicknameValid = nickname.trim().length >= 2;
+  const normalizedEmail = email.trim().toLowerCase();
+  const isDuplicated = duplicatedEmail === normalizedEmail;
+  const isAvailable = availableEmail === normalizedEmail && !isDuplicated;
+
+  /** 이메일 입력을 마치면(blur) 중복 여부를 미리 확인한다. 실패하면 가입 시 서버 검증에 맡긴다. */
+  const checkEmail = async () => {
+    const target = normalizedEmail;
+    if (!isValidEmail(email) || target === duplicatedEmail || target === availableEmail)
+      return;
+    emailCheckRef.current?.abort();
+    const controller = new AbortController();
+    emailCheckRef.current = controller;
+    try {
+      const { available } = await checkEmailAvailable(email.trim(), controller.signal);
+      if (available) setAvailableEmail(target);
+      else setDuplicatedEmail(target);
+    } catch {
+      // 네트워크 오류·취소 등은 무시 (회원가입 요청에서 다시 검증됨)
+    }
+  };
+
+  const trimmedNickname = nickname.trim();
   const passwordMatch =
     passwordConfirm.length > 0 && password === passwordConfirm;
 
   const errors = {
-    nickname: !nicknameValid ? MESSAGES.nicknameRequired : undefined,
+    nickname:
+      trimmedNickname.length < 2
+        ? MESSAGES.nicknameRequired
+        : trimmedNickname.length > NICKNAME_MAX_LENGTH
+          ? MESSAGES.nicknameTooLong
+          : undefined,
     email: !isValidEmail(email)
       ? MESSAGES.emailInvalid
-      : isRegistered(email)
+      : isDuplicated
         ? MESSAGES.emailAlreadyRegistered
         : undefined,
     password: !isValidPassword(password) ? MESSAGES.passwordInvalid : undefined,
@@ -45,17 +81,41 @@ const SignupPage = () => {
   const show = (message?: string) => (submitted ? message : undefined);
   const termsError = show(errors.terms);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     setSubmitted(true);
     setSaveError(undefined);
     if (Object.values(errors).some(Boolean)) return;
 
-    // TODO: 회원가입 API 연동 (agreeMarketing 포함)
-    if (!saveAccount(email, nickname.trim())) {
-      setSaveError(MESSAGES.signupSaveFailed);
+    setLoading(true);
+    try {
+      await signup({
+        nickname: trimmedNickname,
+        email: email.trim(),
+        password,
+        passwordConfirm,
+        agreedTermIds: [
+          ...TERM_IDS.required,
+          ...(agreeMarketing ? [TERM_IDS.marketing] : []),
+        ],
+      });
+    } catch (error) {
+      const { status, message } = toApiError(error);
+      if (status === 409) {
+        setDuplicatedEmail(email.trim().toLowerCase());
+      } else if (status === 400) {
+        setSaveError(message ?? MESSAGES.signupInvalidRequest);
+      } else if (status === undefined) {
+        setSaveError(MESSAGES.networkError);
+      } else {
+        setSaveError(MESSAGES.signupFailed);
+      }
       return;
+    } finally {
+      setLoading(false);
     }
+
     // 가입 후에는 로그인 화면으로 보내 직접 로그인하게 한다 (이메일은 미리 채움)
     const state: LoginState = { email: email.trim(), fromSignup: true };
     navigate(withRedirect("/login", redirect), { replace: true, state });
@@ -74,6 +134,7 @@ const SignupPage = () => {
             label="닉네임"
             autoComplete="nickname"
             placeholder="닉네임을 입력하세요"
+            maxLength={NICKNAME_MAX_LENGTH}
             className="[&_input]:font-bold"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
@@ -87,7 +148,12 @@ const SignupPage = () => {
             placeholder="@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            error={show(errors.email)}
+            onBlur={checkEmail}
+            status={
+              isAvailable && <span className="text-[#0f172a]">✓ 사용 가능</span>
+            }
+            // 이미 가입된 이메일은 제출 전에도 바로 알려준다
+            error={isDuplicated ? errors.email : show(errors.email)}
           />
           <AuthInput
             size="sm"
@@ -163,7 +229,9 @@ const SignupPage = () => {
             {saveError}
           </p>
         )}
-        <PrimaryButton type="submit">회원가입 완료</PrimaryButton>
+        <PrimaryButton type="submit" disabled={loading}>
+          {loading ? "가입 처리 중..." : "회원가입 완료"}
+        </PrimaryButton>
 
         <p className="mt-4 flex h-[34.5px] items-start justify-center gap-[25px] pt-[15px] text-[13px] leading-[19.5px]">
           <span className="text-[#64748b]">
