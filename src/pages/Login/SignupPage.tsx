@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getRedirect, withRedirect } from "@/utils/redirect";
 import AuthBackground from "./components/AuthBackground";
@@ -14,7 +14,7 @@ import {
   NICKNAME_MAX_LENGTH,
   type LoginState,
 } from "./validation";
-import { signup } from "@/apis/auth";
+import { checkEmailAvailable, signup } from "@/apis/auth";
 import { toApiError } from "@/apis/client";
 import { TERM_IDS } from "@/constants/terms";
 
@@ -32,6 +32,31 @@ const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   /** 서버에서 409(이미 가입된 이메일)를 받은 이메일 */
   const [duplicatedEmail, setDuplicatedEmail] = useState<string>();
+  /** 중복 확인 API에서 사용 가능하다고 받은 이메일 */
+  const [availableEmail, setAvailableEmail] = useState<string>();
+  const emailCheckRef = useRef<AbortController | null>(null);
+  useEffect(() => () => emailCheckRef.current?.abort(), []);
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const isDuplicated = duplicatedEmail === normalizedEmail;
+  const isAvailable = availableEmail === normalizedEmail && !isDuplicated;
+
+  /** 이메일 입력을 마치면(blur) 중복 여부를 미리 확인한다. 실패하면 가입 시 서버 검증에 맡긴다. */
+  const checkEmail = async () => {
+    const target = normalizedEmail;
+    if (!isValidEmail(email) || target === duplicatedEmail || target === availableEmail)
+      return;
+    emailCheckRef.current?.abort();
+    const controller = new AbortController();
+    emailCheckRef.current = controller;
+    try {
+      const { available } = await checkEmailAvailable(email.trim(), controller.signal);
+      if (available) setAvailableEmail(target);
+      else setDuplicatedEmail(target);
+    } catch {
+      // 네트워크 오류·취소 등은 무시 (회원가입 요청에서 다시 검증됨)
+    }
+  };
 
   const trimmedNickname = nickname.trim();
   const passwordMatch =
@@ -46,7 +71,7 @@ const SignupPage = () => {
           : undefined,
     email: !isValidEmail(email)
       ? MESSAGES.emailInvalid
-      : duplicatedEmail === email.trim().toLowerCase()
+      : isDuplicated
         ? MESSAGES.emailAlreadyRegistered
         : undefined,
     password: !isValidPassword(password) ? MESSAGES.passwordInvalid : undefined,
@@ -123,7 +148,12 @@ const SignupPage = () => {
             placeholder="@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            error={show(errors.email)}
+            onBlur={checkEmail}
+            status={
+              isAvailable && <span className="text-[#0f172a]">✓ 사용 가능</span>
+            }
+            // 이미 가입된 이메일은 제출 전에도 바로 알려준다
+            error={isDuplicated ? errors.email : show(errors.email)}
           />
           <AuthInput
             size="sm"
