@@ -16,13 +16,13 @@ import {
   buildSalaryChanges,
   buildSalarySimulationRequest,
   simulateSalary,
+  saveSalaryTarget,
   sameSalaryChanges,
   validateSalaryAdditions,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
-import { getSalaryTargetSaveMock } from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
 import type { SalaryResult as DiagnosisSalaryResult } from "@/types/diagnosis";
 import type {
@@ -192,8 +192,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] =
-    useState<Exclude<SalaryCompanyScale, null>>("LARGE");
+  const [companyGroup, setCompanyGroup] = useState<SalaryCompanyScale>(null);
   const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
     null
   );
@@ -347,10 +346,8 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
       setComparisonError(conditionError);
       return;
     }
-    if (!request || !comparisonKey || !getSalaryTargetSaveMock(request)) {
-      setComparisonError(
-        "현재 선택한 기업군 또는 조건은 Mock 비교를 지원하지 않아요. 실제 API 연동 후 이용할 수 있습니다."
-      );
+    if (!request || !comparisonKey || !result?.simulated) {
+      setComparisonError("목표 조건의 예상 연봉을 먼저 확인해 주세요.");
       return;
     }
 
@@ -368,17 +365,17 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     setComparisonLoading(true);
     setComparisonError(null);
     try {
-      const data = await getSalaryTargetSaveMock(request);
-      if (!data) {
-        setComparisonError(
-          "현재 조건에 대응하는 비교 Mock이 없어요. 실제 API 연동 후 이용할 수 있습니다."
-        );
-        return;
+      const data = await saveSalaryTarget(request);
+      if (
+        data.options.length !== 3 ||
+        data.options.filter((item) => item.selected).length !== 1
+      ) {
+        throw new Error("비교 결과의 선택지 구성이 올바르지 않습니다.");
       }
       setComparisonCache({ key: comparisonKey, data });
       showComparison();
     } catch {
-      setComparisonError("비교 결과를 불러오지 못했어요. 다시 시도해 주세요.");
+      setComparisonError("목표 스펙을 저장하지 못했어요. 다시 시도해 주세요.");
     } finally {
       setComparisonLoading(false);
     }
@@ -435,10 +432,10 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
         ) : (
           <div className="rounded-xl border border-border px-6 py-12 text-center">
             <p role="status" className="text-[14px] text-text-secondary">
-              이전 비교 결과가 없거나 현재 조건의 Mock 비교를 지원하지 않아요.
+              현재 조건의 비교 결과가 없어요.
             </p>
             <p className="mt-2 text-[12px] text-text-muted">
-              비교 결과는 화면에 임시 저장됩니다. 조건을 다시 설정해 주세요.
+              조건을 다시 선택하고 비교를 진행해 주세요.
             </p>
             <button
               type="button"
@@ -520,15 +517,16 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                 <select
                   id="salary-company"
                   disabled={comparisonLoading}
-                  value={companyGroup}
+                  value={companyGroup ?? ""}
                   onChange={(event) => {
                     setCompanyGroup(
-                      event.target.value as Exclude<SalaryCompanyScale, null>
+                      (event.target.value || null) as SalaryCompanyScale
                     );
                     setComparisonError(null);
                   }}
                   className="h-10 min-w-[190px] cursor-pointer appearance-none rounded-lg bg-bg-section pr-10 pl-4 text-[13px] font-semibold"
                 >
+                  <option value="">선택</option>
                   <option value="STARTUP">스타트업</option>
                   <option value="SMALL">소기업</option>
                   <option value="MIDDLE">중기업</option>
@@ -744,7 +742,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   comparisonLoading ||
                   simulationLoading ||
                   !!simulationError ||
-                  !result
+                  !result?.simulated
                 }
                 className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 enabled:cursor-pointer enabled:hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
               >

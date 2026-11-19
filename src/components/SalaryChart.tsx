@@ -39,14 +39,14 @@ export default function SalaryChart({
 
   const viewWidth = wide ? 970 : 680;
   const viewHeight = wide ? 365 : 325;
-  const left = 76;
-  const right = viewWidth - 55;
+  const left = wide ? 90 : 85;
+  const right = viewWidth - (wide ? 90 : 85);
   const top = 20;
   const bottom = wide ? 280 : 250;
 
   const comparing = comparisonData !== undefined;
   const comparisonByYear = new Map(
-    comparisonData?.map(({ year, salary }) => [year, salary]),
+    comparisonData?.map(({ year, salary }) => [year, salary])
   );
   const comparisonPoints = data.flatMap(({ year }, index) => {
     const salary = comparisonByYear.get(year);
@@ -71,7 +71,7 @@ export default function SalaryChart({
 
   const ticks = Array.from(
     { length: Math.round((max - min) / step) + 1 },
-    (_, index) => min + index * step,
+    (_, index) => min + index * step
   );
 
   const x = (index: number) =>
@@ -84,12 +84,12 @@ export default function SalaryChart({
     points
       .map(
         ({ index, salary }, position) =>
-          `${position === 0 ? "M" : "L"} ${x(index)} ${y(salary)}`,
+          `${position === 0 ? "M" : "L"} ${x(index)} ${y(salary)}`
       )
       .join(" ");
 
   const salaryLine = drawLine(
-    data.map(({ salary }, index) => ({ index, salary })),
+    data.map(({ salary }, index) => ({ index, salary }))
   );
 
   const hasRange =
@@ -100,17 +100,17 @@ export default function SalaryChart({
         point.lower !== undefined &&
         point.upper !== undefined &&
         point.lower <= point.salary &&
-        point.salary <= point.upper,
+        point.salary <= point.upper
     );
 
   const rangePoints = hasRange
     ? [
         ...data.map(
-          (point, index) => `${x(index)},${y(point.upper ?? point.salary)}`,
+          (point, index) => `${x(index)},${y(point.upper ?? point.salary)}`
         ),
         ...data
           .map(
-            (point, index) => `${x(index)},${y(point.lower ?? point.salary)}`,
+            (point, index) => `${x(index)},${y(point.lower ?? point.salary)}`
           )
           .reverse(),
       ].join(" ")
