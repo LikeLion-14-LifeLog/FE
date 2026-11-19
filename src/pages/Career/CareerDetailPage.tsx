@@ -7,8 +7,13 @@ import DetailStatSummary from "./components/DetailStatSummary";
 import RequirementList from "./components/RequirementList";
 import StatCard from "./components/StatCard";
 import TimingDistribution from "./components/TimingDistribution";
-import { getCareerRouteDetail, getCareerSalaryAnalytics } from "@/apis/careerPath";
-import { aggregateSalaryGroups, routeKey } from "@/utils/careerRouteTree";
+import {
+  getCareerRouteDetail,
+  getCareerRouteSalaryAnalysis,
+  getPersonalizedRouteAnalysis,
+} from "@/apis/careerPath";
+import { useCurrentUser } from "@/store/authStore";
+import { toRouteSalary } from "@/utils/careerRouteTree";
 import { buildCareerRouteDetail, parseRouteId } from "@/utils/careerRouteDetail";
 
 const SectionTitle = ({ children }: { children: string }) => (
@@ -27,30 +32,42 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
   // 지도에서 넘어왔으면 그때의 선택 상태(쿼리)로 돌아간다
   const back = (useLocation().state as { back?: string } | null)?.back;
   const backTo = back?.startsWith("/career") ? back : "/career";
+  const loggedIn = !!useCurrentUser()?.accessToken;
 
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
-    Promise.all([
-      getCareerRouteDetail(source, target, { signal }),
-      // 연봉은 실패해도 나머지 정보는 보여 준다
-      getCareerSalaryAnalytics({ signal })
-        .then(({ groups }) => aggregateSalaryGroups(groups).get(routeKey(source, target)))
-        .catch(() => undefined),
-    ])
-      .then(([data, salary]) => {
-        const detail = buildCareerRouteDetail(data, salary);
+    // 로그인했으면 내 전공 계열 기준 상세 분석(연봉·스펙 비교·추천). 실패해도 나머지는 보여 준다
+    const personal = loggedIn
+      ? getPersonalizedRouteAnalysis(source, target, { signal }).catch(
+          () => undefined,
+        )
+      : Promise.resolve(undefined);
+    // 내 전공 계열 연봉이 없으면(비로그인·표본 부족·실패) 전체 응답자 연봉 분석을 쓴다
+    const salary = personal.then(
+      (analysis) =>
+        (analysis && toRouteSalary(analysis)) ??
+        getCareerRouteSalaryAnalysis(source, target, { signal })
+          .then(toRouteSalary)
+          .catch(() => undefined),
+    );
+    Promise.all([getCareerRouteDetail(source, target, { signal }), salary, personal])
+      .then(([data, salary, analysis]) => {
+        const detail = buildCareerRouteDetail(data, salary, analysis);
         setState(detail ? { status: "done", detail } : { status: "not-found" });
       })
       .catch(() => {
         if (!signal.aborted) setState({ status: "not-found" });
       });
     return () => controller.abort();
-  }, [source, target]);
+  }, [source, target, loggedIn]);
 
   if (state.status === "not-found") return <Navigate to="/career" replace />;
   if (state.status === "loading") return <CareerDetailSkeleton />;
   const { detail } = state;
+  const specEmptyText = loggedIn
+    ? "비교할 수 있는 표본이 부족해 표시할 항목이 없어요."
+    : "로그인하면 내 스펙과 비교한 결과를 볼 수 있어요.";
 
 
   return (
@@ -83,12 +100,14 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
               title="현재 조건과 일치하는 요건"
               icon="check"
               items={detail.matchedRequirements}
+              emptyText={specEmptyText}
             />
             <RequirementList
               title="도착 직업 준비에 추천하는 경험"
               icon="mintArrow"
               items={detail.recommendedExperiences}
               tone="brand"
+              emptyText={specEmptyText}
             />
           </div>
           <div className="mt-5 border-t border-slate-100 pt-4" />

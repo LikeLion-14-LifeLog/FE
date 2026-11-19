@@ -33,6 +33,151 @@ export type CareerRoutesData = {
   routes: CareerRoute[];
 };
 
+/** GET /api/v1/career-paths/yearly/personalized/routes — 개인화 경로 (전체 경로 필드 + 경로 ID·고유 응답자 수) */
+export type PersonalizedCareerRoute = CareerRoute & {
+  /** "출발코드-도착코드" */
+  id: string;
+  distinctRespondents: number;
+};
+
+/** 로그인 사용자의 CURRENT 스펙 전공 계열과 같은 응답자의 경로 */
+export type PersonalizedCareerRoutesData = {
+  dataStatus: string;
+  verifiedFirstJobChange: boolean;
+  /** 개인화 매칭 기준 (예: MAJOR_FIELD) */
+  matchingBasis: string;
+  /** 사용자의 전공 계열 매칭 값 (예: ["ENGINEERING", "공학계열"]) */
+  majorFields: string[];
+  /** 최소 고유 응답자 수 */
+  minSampleSize: number;
+  notice?: string;
+  /** 데이터 제공 상태 (예: AVAILABLE) */
+  status: string;
+  returnedRouteCount: number;
+  routes: PersonalizedCareerRoute[];
+};
+
+/**
+ * GET /api/v1/career-paths/yearly/personalized/graph — 개인화 경로 그래프.
+ * edges 는 개인화 경로 목록(routes)과 같은 모양이고, nodes 는 엣지에 등장하는 직업들.
+ */
+export type PersonalizedCareerGraphData = Omit<
+  PersonalizedCareerRoutesData,
+  "routes"
+> & {
+  nodes: { id: string; code: string; label: string }[];
+  edges: PersonalizedCareerRoute[];
+  nodeCount: number;
+  edgeCount: number;
+};
+
+/**
+ * 경로 연봉 통계 (개인화 상세 분석·전체 응답자 연봉 분석 공통).
+ * 표본이 부족하면 status 가 INSUFFICIENT_DATA 이고 값이 모두 null.
+ * P75 는 별도 최소 표본(p75MinSampleSize)이 있어 평균·중앙값이 있어도 null 일 수 있다.
+ */
+export type CareerSalaryStats = {
+  status: string;
+  /** 양쪽 연봉이 모두 유효한 관측 건수 */
+  sampleCount: number | null;
+  distinctRespondents: number | null;
+  meanFromSalaryKrw: number | null;
+  meanToSalaryKrw: number | null;
+  meanDifferenceKrw: number | null;
+  /** 평균 연봉 기준 변화율 (%) */
+  meanSalaryChangePercent: number | null;
+  medianFromSalaryKrw: number | null;
+  medianToSalaryKrw: number | null;
+  p75FromSalaryKrw: number | null;
+  p75ToSalaryKrw: number | null;
+  p75DifferenceKrw: number | null;
+  p75MinSampleSize: number;
+  p75Status: string;
+};
+
+/** 스펙 비교 항목 — 관측 응답자 중 해당 스펙 보유 비율 (필수 요건·성공 원인 아님) */
+export type CareerSpecItem = {
+  /** MAJOR_FIELD | LANGUAGE_EXAM | CERTIFICATE | CERTIFICATE_TYPE */
+  type: string;
+  /** 전공 계열 코드, 어학시험 코드(TOEIC 등), CERTIFICATE_ANY, NATIONAL_TECHNICAL 등 */
+  code: string;
+  name: string;
+  /** 내 CURRENT 스펙에 같은 항목이 있는지 */
+  matched: boolean;
+  /** 해당 항목의 유효 응답자 수 */
+  sampleCount: number;
+  observedCount: number;
+  sharePercent: number;
+};
+
+export type CareerSpecResult = {
+  /** AVAILABLE | NO_REPORTABLE_ITEMS (표본 부족 시 items 빈 배열) */
+  status: string;
+  basis: string;
+  minSampleSize: number;
+  notice: string;
+  items: CareerSpecItem[];
+};
+
+/** 관측 연도 간격 분포 한 칸 ("1년" … "4년 이상") */
+export type CareerGapBucket = {
+  label: string;
+  count: number;
+  percent: number;
+};
+
+/**
+ * GET /api/v1/career-paths/yearly/personalized/routes/{source}/{target}/analysis
+ * 내 전공 계열 응답자 기준 한 경로의 연봉·관측 연도 간격·스펙 비교 분석.
+ * 표본이 부족하면 status 가 AVAILABLE 이 아니고 값이 비어 있을 수 있다.
+ */
+export type PersonalizedRouteAnalysis = {
+  dataStatus: string;
+  verifiedFirstJobChange: boolean;
+  matchingBasis: string;
+  majorFields: string[];
+  minSampleSize: number;
+  notice?: string;
+  source: string;
+  sourceName: string;
+  target: string;
+  targetName: string;
+  status: string;
+  observedSegments: number | null;
+  distinctRespondents: number | null;
+  salary: CareerSalaryStats | null;
+  /** 평균 관측 연도 간격 (년) */
+  meanObservedYearGap: number | null;
+  gapDistribution: CareerGapBucket[];
+  gapDistributionStatus: string;
+  /** 도착 직업 응답자의 관측 스펙 (matched 로 내 스펙과 대조) */
+  requirements?: CareerSpecResult | null;
+  /** 이 경로 출발 시점 스펙 중 내가 아직 없는 것 */
+  recommendations?: CareerSpecResult | null;
+};
+
+/**
+ * GET /api/v1/career-paths/yearly/routes/{source}/{target}/salary-analysis
+ * 전공 계열 필터 없이 전체 응답자 기준 한 경로의 연봉 분석 (비로그인 가능).
+ * 표본 부족이면 status INSUFFICIENT_DATA, observedSegments·distinctRespondents null.
+ */
+export type CareerRouteSalaryAnalysis = {
+  dataStatus: string;
+  verifiedFirstJobChange: boolean;
+  /** ALL_RESPONDENTS */
+  matchingBasis: string;
+  minSampleSize: number;
+  notice?: string;
+  source: string;
+  sourceName: string;
+  target: string;
+  targetName: string;
+  status: string;
+  observedSegments: number | null;
+  distinctRespondents: number | null;
+  salary: CareerSalaryStats | null;
+};
+
 /** 전공 계열 코드 */
 export type MajorField =
   | "HUMANITIES"

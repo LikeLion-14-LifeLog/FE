@@ -3,7 +3,12 @@ import type {
   RouteSalary,
   TimingDistribution,
 } from "@/types/career";
-import type { CareerGraphEdge, CareerRouteDetailData } from "@/types/careerRoute";
+import type {
+  CareerGraphEdge,
+  CareerRouteDetailData,
+  CareerSpecItem,
+  CareerSpecResult,
+} from "@/types/careerRoute";
 import { formatManwonDiff } from "@/utils/careerRouteTree";
 
 export const CAREER_DATA_SOURCE = "출처: 한국고용정보원 청년패널조사(KEEPⅡ)";
@@ -41,6 +46,33 @@ function buildGapDistribution(intervals: CareerGraphEdge[]): TimingDistribution[
   }));
 }
 
+const LANGUAGE_EXAM_NAMES: Record<string, string> = {
+  TOEIC: "TOEIC",
+  OPIC: "OPIc",
+  TOEIC_SPEAKING: "TOEIC Speaking",
+  TOEIC_WRITING: "TOEIC Writing",
+  TOEFL: "TOEFL",
+  TEPS: "TEPS",
+  IELTS: "IELTS",
+};
+
+/** 스펙 항목 → "어학시험 TOEIC" / "공학계열 전공" / "국가기술자격증" */
+function specLabel({ type, code, name }: CareerSpecItem) {
+  if (type === "LANGUAGE_EXAM") return `어학시험 ${LANGUAGE_EXAM_NAMES[code] ?? name}`;
+  if (type === "MAJOR_FIELD") return `${name} 전공`;
+  return name;
+}
+
+/** 스펙 비교 결과를 목록 문구로 (표본 부족·미제공이면 빈 배열) */
+const toSpecLines = (
+  result: CareerSpecResult | null | undefined,
+  scope: string,
+  filter: (item: CareerSpecItem) => boolean = () => true,
+) =>
+  (result?.items ?? [])
+    .filter(filter)
+    .map((item) => `${specLabel(item)} · ${scope} ${item.sharePercent}%`);
+
 /** 연도 구간을 응답자 수로 가중한 평균 관측 연도 간격 */
 function meanGap(intervals: CareerGraphEdge[]) {
   const total = intervals.reduce((sum, e) => sum + e.distinctRespondents, 0);
@@ -53,13 +85,20 @@ function meanGap(intervals: CareerGraphEdge[]) {
   );
 }
 
+/** 개인화 상세 분석의 스펙 비교 (비로그인·실패 시 없음) */
+export type CareerRouteSpecs = {
+  requirements?: CareerSpecResult | null;
+  recommendations?: CareerSpecResult | null;
+};
+
 /**
- * 경로 상세 API + 연봉 분석 결과를 상세 화면 구조로 바꾼다.
- * 받을 수 없는 값(요건·추천 경험·상위 25% 연봉 차이)은 비워 둔다.
+ * 경로 상세 API + 연봉 분석 + (로그인 시) 스펙 비교 결과를 상세 화면 구조로 바꾼다.
+ * 표본 부족으로 비어 있는 값은 "-" 또는 빈 목록으로 둔다.
  */
 export function buildCareerRouteDetail(
   data: CareerRouteDetailData,
   salary: RouteSalary | undefined,
+  specs: CareerRouteSpecs | undefined,
 ): CareerRouteDetail | null {
   const { route, yearlyIntervals } = data;
   if (!route) return null;
@@ -78,7 +117,10 @@ export function buildCareerRouteDetail(
         label: "이동 전 평균 연봉",
         value: salary ? toManwon(salary.meanFrom) : EMPTY,
         unit: "만 원",
-        caption: `${route.sourceName} 기준`,
+        caption:
+          salary?.medianFrom != null
+            ? `중앙값 ${toManwon(salary.medianFrom)}만 원`
+            : `${route.sourceName} 기준`,
       },
       {
         label: "평균 이동 간격",
@@ -99,16 +141,26 @@ export function buildCareerRouteDetail(
         highlight: true,
       },
     ],
-    // 요건·추천 경험은 제공 API가 없어 비워 둔다
-    matchedRequirements: [],
-    recommendedExperiences: [],
+    // 도착 직업 응답자 스펙 중 내 현재 스펙과 같은 것 / 이 경로 출발 시점 스펙 중 내가 없는 것
+    matchedRequirements: toSpecLines(
+      specs?.requirements,
+      "도착 직업 응답자",
+      (item) => item.matched,
+    ),
+    recommendedExperiences: toSpecLines(specs?.recommendations, "이 경로 응답자"),
     timing,
     raises: [
       {
         label: "평균 연봉 차이",
         value: salary ? `${formatManwonDiff(salary.meanDifference)} 원` : EMPTY,
       },
-      { label: "상위 25% 연봉 차이", value: EMPTY },
+      {
+        label: "상위 25% 연봉 차이",
+        value:
+          salary?.p75Difference != null
+            ? `${formatManwonDiff(salary.p75Difference)} 원`
+            : EMPTY,
+      },
     ],
     source: CAREER_DATA_SOURCE,
   };

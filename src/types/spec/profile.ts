@@ -4,6 +4,8 @@ export type BasicInfo = {
   residenceRegion: string;
   jobId: number | null;
   jobName: string;
+  /** 직무 검색에서 선택했을 때만 채우는 직업 코드 */
+  jobCode?: string;
 };
 
 export type SelectOption = {
