@@ -215,7 +215,7 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
     "h-10 cursor-pointer rounded-lg border border-border px-5 text-[12px] font-medium text-text-secondary transition-colors hover:border-text-primary hover:text-text-primary disabled:opacity-50";
 
   return (
-    <section className="flex min-h-[calc(100dvh/var(--page-zoom)-160px)] w-full items-center justify-center bg-bg-page px-5 py-10">
+    <section className="flex h-[calc(100dvh-171px)] w-full items-center justify-center overflow-hidden bg-bg-page px-5">
       <div className="flex w-full max-w-[960px] flex-col items-center text-center">
         <img
           src={diagnosisIllustration}
@@ -256,7 +256,7 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
           </button>
         )}
         <div className="mt-6 flex h-10 items-center justify-center">
-          {unavailable || ended ? (
+          {unavailable || canceled || failed ? (
             <button
               type="button"
               onClick={() => navigate("/spec?edit=1")}
@@ -264,7 +264,7 @@ function DiagnosisLoadingRun({ runId }: { runId: number }) {
             >
               스펙 등록으로 돌아가기
             </button>
-          ) : showCancel ? (
+          ) : showCancel && !ended ? (
             <button
               type="button"
               disabled={canceling}
