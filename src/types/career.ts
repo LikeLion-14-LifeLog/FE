@@ -1,30 +1,28 @@
-/** 커리어 경로 지도 — 1차 첫 취업 진입군 노드 */
-export type FirstJobNode = {
+/** 경로 지도 노드 공통 — 직업 이동 경로 API(routes) 한 건에서 만든다 */
+type CareerRouteNodeBase = {
   id: string;
+  /** 도착 직업코드 */
+  code: string;
+  /** 도착 직업명 */
   title: string;
-  /** 초봉 (만 원) */
-  salary: number;
-  /** 진입 비중 (%) */
+  /** 출발 직업 기준 이동 비율 (%) — 실제 이직 확률 아님 */
   share: number;
-  /** 진입 인원 (명) */
-  entrants: number;
-  /** 인원 옆 보조 설명 (예: "시스템 운영") */
-  note: string;
+  /** 관측 구간 수 */
+  observedSegments: number;
+  /** 관측 연도 구간 수 */
+  observedYearIntervals: number;
 };
 
-/** 커리어 경로 지도 — 2차 이직/성장 궤적 노드 */
-export type NextStepNode = {
-  id: string;
+/** 커리어 경로 지도 — 1차 이동 직업 노드 */
+export type FirstJobNode = CareerRouteNodeBase;
+
+/** 커리어 경로 지도 — 2차 이동 직업 노드 */
+export type NextStepNode = CareerRouteNodeBase & {
   /** 출발한 1차 노드 id */
   parentId: string;
-  title: string;
-  /** 도달 연봉 (만 원) */
-  salary: number;
-  /** jump: 이직(강조 카드), stay: 근속·승진(작은 카드) */
+  /** jump: 부모 기준 최다 이동(강조 카드), stay: 그 외(작은 카드) */
   variant: "jump" | "stay";
-  /** stay 카드 연봉 옆 괄호 설명 (예: "근속 38%") */
-  note?: string;
-  /** jump 카드 우측 상단 라벨 (예: "최대 상승 구간") */
+  /** jump 카드 우측 상단 라벨 (예: "최다 이동") */
   badge?: string;
 };
 
@@ -43,17 +41,11 @@ export type RouteSummaryRow = {
 /** 우측 패널 — 선택한 이동 경로 요약 */
 export type RouteSummary = {
   title: string;
-  startSalary: number;
-  targetSalary: number;
+  /** 1차 직업 기준 2차 이동 비율 (%) — 패널 메인 수치 */
+  share: number;
+  /** 막대 아래 보조 설명 */
+  caption: string;
   rows: RouteSummaryRow[];
-};
-
-export type CareerMapData = {
-  conditions: string[];
-  start: CareerStartCondition;
-  firstJobs: FirstJobNode[];
-  nextSteps: NextStepNode[];
-  summaries: Record<string, RouteSummary>;
 };
 
 export type DetailStat = {
