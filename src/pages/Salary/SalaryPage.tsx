@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { getSavedSpecProfileMock } from "@/apis/spec";
-import type { SalaryCompanyScale, SalaryTargetSaveData } from "@/types/salaryApi";
+import type {
+  SalaryCompanyScale,
+  SalaryTargetSaveData,
+} from "@/types/salaryApi";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
@@ -18,6 +21,7 @@ import {
   salarySimulationRequestMock,
 } from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
+import type { SalaryResult as DiagnosisSalaryResult } from "@/types/diagnosis";
 import type {
   SalaryChanges,
   SalaryCondition,
@@ -119,11 +123,19 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
 
 function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const location = useLocation();
+  const diagnosisState = location.state as {
+    diagnosisSalaryResults?: DiagnosisSalaryResult[];
+    diagnosisRunId?: number;
+  } | null;
+  const diagnosisResults = diagnosisState?.diagnosisSalaryResults;
+  const fromDiagnosis =
+    Array.isArray(diagnosisResults) && diagnosisResults.length === 3;
   const email = useCurrentUser()?.email;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isComparing = searchParams.get("view") === "compare";
-  const [companyGroup, setCompanyGroup] = useState<Exclude<SalaryCompanyScale, null>>("LARGE");
+  const [companyGroup, setCompanyGroup] =
+    useState<Exclude<SalaryCompanyScale, null>>("LARGE");
   const [openCondition, setOpenCondition] = useState<SalaryCondition | null>(
     null
   );
@@ -148,13 +160,24 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
       salarySimulationRequestMock.baseSpecProfileId,
       profile?.educations ?? []
     );
-  const result = request ? getSalarySimulationMock(request) : null;
+  const result = fromDiagnosis
+    ? null
+    : request
+      ? getSalarySimulationMock(request)
+      : null;
   const comparisonKey = request ? JSON.stringify(request) : null;
   const compareParams = new URLSearchParams(searchParams);
   compareParams.set("view", "compare");
 
   const openComparison = async () => {
     if (locked || comparisonLoading) return;
+
+    if (fromDiagnosis) {
+      setComparisonError(
+        "진단 결과 기준의 조건별 연봉 예측은 시뮬레이터 API 연동 후 제공됩니다."
+      );
+      return;
+    }
 
     if (conditionError) {
       setComparisonError(conditionError);
@@ -266,18 +289,20 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     );
   }
 
-  const baselineRequest = !result
-    ? buildSalarySimulationRequest(
-        {},
-        companyGroup,
-        salarySimulationRequestMock.baseSpecProfileId,
-        profile?.educations ?? []
-      )
-    : null;
+  const baselineRequest =
+    !result && !fromDiagnosis
+      ? buildSalarySimulationRequest(
+          {},
+          companyGroup,
+          salarySimulationRequestMock.baseSpecProfileId,
+          profile?.educations ?? []
+        )
+      : null;
   const baseline = baselineRequest
     ? getSalarySimulationMock(baselineRequest)
     : null;
-  const baseResults = (result ?? baseline)?.base.salaryResults ?? [];
+  const baseResults =
+    diagnosisResults ?? (result ?? baseline)?.base.salaryResults ?? [];
   const simulatedResults = result?.simulated?.salaryResults ?? [];
   const startingSalary = baseResults.find(
     ({ annual }) => annual === 0
@@ -303,23 +328,24 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
           salary: annualIncomeExpected,
         }))
     : null;
-  const previewMessage =
-    conditionError ??
-    (!request && changes.academic?.type === "UNIVERSITY"
-      ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
-      : !result
-        ? companyGroup !== "LARGE"
-          ? "현재 기업군은 예측 Mock을 지원하지 않아요. 실제 연봉 예측은 API 연동 후 제공됩니다."
-          : "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
-        : result.simulated
-          ? [
-              result.preparationPeriod,
-              result.estimatedCost,
-              result.decisionCriteria,
-            ]
-              .filter(Boolean)
-              .join(" · ")
-          : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요.");
+  const previewMessage = fromDiagnosis
+    ? "진단 당시 예상 연봉을 기준으로 표시합니다. 조건 변경 후 연봉은 실제 시뮬레이터 API 연동 후 확인할 수 있습니다."
+    : (conditionError ??
+      (!request && changes.academic?.type === "UNIVERSITY"
+        ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
+        : !result
+          ? companyGroup !== "LARGE"
+            ? "현재 기업군은 예측 Mock을 지원하지 않아요. 실제 연봉 예측은 API 연동 후 제공됩니다."
+            : "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
+          : result.simulated
+            ? [
+                result.preparationPeriod,
+                result.estimatedCost,
+                result.decisionCriteria,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요."));
 
   return (
     <div className="w-full lg:-mb-8">
@@ -636,10 +662,19 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
 
 export default function SalaryPage() {
   const email = useCurrentUser()?.email;
+  const location = useLocation();
+  const diagnosisState = location.state as {
+    diagnosisRunId?: number;
+    diagnosisSalaryResults?: DiagnosisSalaryResult[];
+  } | null;
+  const fromDiagnosis = Boolean(
+    diagnosisState?.diagnosisRunId &&
+    diagnosisState.diagnosisSalaryResults?.length === 3
+  );
   return (
     <SalarySimulator
       key={`user:${email}`}
-      locked={!hasCompletedDiagnosis(email)}
+      locked={!hasCompletedDiagnosis(email) && !fromDiagnosis}
     />
   );
 }
