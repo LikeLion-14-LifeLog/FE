@@ -6,7 +6,11 @@ import type {
   CareerPathDetail,
   CareerPathDetailResult,
   CareerRouteDetailData,
+  CareerRouteSalaryAnalysis,
   CareerRoutesData,
+  PersonalizedCareerGraphData,
+  PersonalizedCareerRoutesData,
+  PersonalizedRouteAnalysis,
   YearlyCodePoint,
   CareerSalaryAnalyticsData,
   CareerSalaryFilters,
@@ -26,6 +30,78 @@ export async function getCareerRoutes(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "직업 이동 경로를 불러오지 못했습니다.");
+  return data.data;
+}
+
+/**
+ * 개인화 커리어 경로 목록 조회 (로그인 필요).
+ * CURRENT 스펙의 전공 계열과 같은 응답자의 경로 중 고유 응답자가 최소 인원 이상인 것만 내려온다.
+ */
+export async function getPersonalizedCareerRoutes(
+  options: { fromCode?: string; signal?: AbortSignal } = {},
+): Promise<PersonalizedCareerRoutesData> {
+  const { fromCode, signal } = options;
+  const { data } = await apiClient.get<ApiResponse<PersonalizedCareerRoutesData>>(
+    "/api/v1/career-paths/yearly/personalized/routes",
+    { params: fromCode ? { fromCode } : undefined, signal },
+  );
+  if (!data.success || !data.data || !Array.isArray(data.data.routes))
+    throw new Error(data.message ?? "내 전공 맞춤 경로를 불러오지 못했습니다.");
+  return data.data;
+}
+
+/**
+ * 개인화 커리어 경로 그래프 조회 (로그인 필요).
+ * edges 는 getPersonalizedCareerRoutes 의 routes 와 같은 데이터라, 경로 지도 화면은 routes 를 쓴다.
+ */
+export async function getPersonalizedCareerGraph(
+  options: { fromCode?: string; signal?: AbortSignal } = {},
+): Promise<PersonalizedCareerGraphData> {
+  const { fromCode, signal } = options;
+  const { data } = await apiClient.get<ApiResponse<PersonalizedCareerGraphData>>(
+    "/api/v1/career-paths/yearly/personalized/graph",
+    { params: fromCode ? { fromCode } : undefined, signal },
+  );
+  if (
+    !data.success ||
+    !data.data ||
+    !Array.isArray(data.data.nodes) ||
+    !Array.isArray(data.data.edges)
+  )
+    throw new Error(data.message ?? "내 전공 맞춤 경로 그래프를 불러오지 못했습니다.");
+  return data.data;
+}
+
+/** 개인화 경로 상세 분석 — 내 전공 계열 기준 한 경로의 연봉·관측 간격·스펙 비교·추천 (로그인 필요) */
+export async function getPersonalizedRouteAnalysis(
+  source: string,
+  target: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<PersonalizedRouteAnalysis> {
+  const { data } = await apiClient.get<ApiResponse<PersonalizedRouteAnalysis>>(
+    `/api/v1/career-paths/yearly/personalized/routes/${encodeURIComponent(source)}/${encodeURIComponent(target)}/analysis`,
+    { signal: options.signal },
+  );
+  if (!data.success || !data.data)
+    throw new Error(data.message ?? "경로 분석을 불러오지 못했습니다.");
+  return data.data;
+}
+
+/**
+ * 전체 응답자 기준 한 경로의 연봉 분석 (평균·중앙값·P75, 비로그인 가능).
+ * 상세 화면은 기존 salary-analytics 대신 이 API를 쓴다. 표본 부족이면 salary 값들이 null.
+ */
+export async function getCareerRouteSalaryAnalysis(
+  source: string,
+  target: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<CareerRouteSalaryAnalysis> {
+  const { data } = await apiClient.get<ApiResponse<CareerRouteSalaryAnalysis>>(
+    `/api/v1/career-paths/yearly/routes/${encodeURIComponent(source)}/${encodeURIComponent(target)}/salary-analysis`,
+    { signal: options.signal },
+  );
+  if (!data.success || !data.data)
+    throw new Error(data.message ?? "경로 연봉 분석을 불러오지 못했습니다.");
   return data.data;
 }
 

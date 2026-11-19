@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import {
   getSpecFormOptions,
   getSpecProfile,
+  saveSpecProfile,
   saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
 import { getActiveMockDiagnosis, startMockDiagnosis } from "@/mocks/diagnosis";
-import { useCurrentUser } from "@/store/authStore";
+import { getAccessToken, useCurrentUser } from "@/store/authStore";
+import { saveDefaultCareerJobOnce } from "@/store/defaultCareerJobStore";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
@@ -51,7 +53,9 @@ function SpecFormPage({ email }: { email: string | undefined }) {
 
     const loadProfile = async () => {
       try {
-        const accessToken = localStorage.getItem("accessToken")?.trim();
+        const accessToken = (
+          getAccessToken() ?? localStorage.getItem("accessToken")
+        )?.trim();
 
         if (!accessToken) {
           throw new Error("스펙 조회에 필요한 인증 토큰이 없습니다.");
@@ -64,7 +68,7 @@ function SpecFormPage({ email }: { email: string | undefined }) {
 
         if (!active) return;
 
-        setProfile(savedProfile);
+        if (savedProfile) setProfile(savedProfile);
         setOptions(formOptions);
       } catch (error: unknown) {
         if (!active) return;
@@ -104,6 +108,25 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     setNotice("");
   };
 
+  /** 처음 등록한 희망 직무를 커리어 경로 출발 직업 기본값으로 저장 */
+  const rememberFirstJob = (userEmail: string) =>
+    saveDefaultCareerJobOnce(userEmail, {
+      jobId: basicInfo.jobId,
+      code: basicInfo.jobCode,
+      name: basicInfo.jobName,
+    });
+
+  /** 서버(CURRENT 스펙)에 저장한 뒤, 서버가 매긴 항목 PK를 다시 받아 둔다 */
+  const saveToServer = async () => {
+    const accessToken = (
+      getAccessToken() ?? localStorage.getItem("accessToken")
+    )?.trim();
+    if (!accessToken) throw new Error("로그인이 필요합니다.");
+    await saveSpecProfile(profile, accessToken);
+    const saved = await getSpecProfile(accessToken).catch(() => null);
+    if (saved) setProfile(saved);
+  };
+
   const handleSave = async () => {
     if (saving) return;
 
@@ -126,10 +149,16 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     setNotice("");
 
     try {
+      await saveToServer();
       await saveSpecProfileMock(profile, email);
-      setNotice("Mock 임시 저장 완료");
-    } catch {
-      setNotice("저장에 실패했습니다. 다시 시도해 주세요.");
+      rememberFirstJob(email);
+      setNotice("임시 저장되었습니다.");
+    } catch (error: unknown) {
+      setNotice(
+        error instanceof Error && error.message
+          ? `저장에 실패했습니다. ${error.message}`
+          : "저장에 실패했습니다. 다시 시도해 주세요."
+      );
     } finally {
       setSaving(false);
     }
@@ -154,11 +183,17 @@ function SpecFormPage({ email }: { email: string | undefined }) {
     setNotice("");
 
     try {
+      await saveToServer();
       await saveSpecProfileMock(profile, email);
+      rememberFirstJob(email);
       const run = startMockDiagnosis(profile, email);
       navigate(`/diagnosis/loading?runId=${run.runId}`);
-    } catch {
-      setNotice("분석을 시작하지 못했습니다. 다시 시도해 주세요.");
+    } catch (error: unknown) {
+      setNotice(
+        error instanceof Error && error.message
+          ? `분석을 시작하지 못했습니다. ${error.message}`
+          : "분석을 시작하지 못했습니다. 다시 시도해 주세요."
+      );
     } finally {
       setSaving(false);
     }

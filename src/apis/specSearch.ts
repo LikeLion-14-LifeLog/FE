@@ -1,3 +1,4 @@
+import { getAccessToken } from "@/store/authStore";
 import {
   fromJob,
   fromMajor,
@@ -38,7 +39,10 @@ async function fetchSearchData<T>(
     throw new Error("API 기본 주소가 설정되지 않았습니다.");
   }
 
-  const accessToken = localStorage.getItem("accessToken")?.trim();
+  // 로그인 정보(authStore)의 토큰을 쓰고, 예전 방식(localStorage accessToken)도 허용
+  const accessToken = (
+    getAccessToken() ?? localStorage.getItem("accessToken")
+  )?.trim();
 
   if (!accessToken) {
     throw new Error("검색에 필요한 인증 토큰이 없습니다.");

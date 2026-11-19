@@ -9,8 +9,10 @@ import type {
 import type {
   CareerGraphEdge,
   CareerRoute,
+  CareerRouteSalaryAnalysis,
   CareerSalaryGroup,
   MajorField,
+  PersonalizedRouteAnalysis,
 } from "@/types/careerRoute";
 
 /** 그래프 레이아웃(951 × 560)에 맞춘 노드 수 상한 */
@@ -74,10 +76,42 @@ export function aggregateSalaryGroups(
       meanDifference: weighted((g) => g.meanSalaryDifferenceKrw),
       medianFrom: single?.medianFromSalaryKrw ?? null,
       medianTo: single?.medianToSalaryKrw ?? null,
+      p75Difference: null,
       meanYearGap: weighted((g) => g.meanObservedYearGap),
     });
   }
   return result;
+}
+
+/**
+ * 개인화 상세 분석·전체 응답자 연봉 분석의 연봉을 화면용 연봉 형태로 바꾼다.
+ * 표본 부족으로 평균이 비어 있으면 undefined, 중앙값·P75 는 각각 없으면 null.
+ */
+export function toRouteSalary(
+  analysis: PersonalizedRouteAnalysis | CareerRouteSalaryAnalysis,
+): RouteSalary | undefined {
+  const salary = analysis.salary;
+  if (
+    !salary ||
+    salary.status !== "AVAILABLE" ||
+    salary.meanFromSalaryKrw == null ||
+    salary.meanToSalaryKrw == null
+  )
+    return undefined;
+  return {
+    segmentCount: salary.sampleCount ?? analysis.observedSegments ?? 0,
+    meanFrom: salary.meanFromSalaryKrw,
+    meanTo: salary.meanToSalaryKrw,
+    meanDifference:
+      salary.meanDifferenceKrw ??
+      salary.meanToSalaryKrw - salary.meanFromSalaryKrw,
+    medianFrom: salary.medianFromSalaryKrw ?? null,
+    medianTo: salary.medianToSalaryKrw ?? null,
+    p75Difference:
+      salary.p75Status === "AVAILABLE" ? (salary.p75DifferenceKrw ?? null) : null,
+    meanYearGap:
+      "meanObservedYearGap" in analysis ? (analysis.meanObservedYearGap ?? 0) : 0,
+  };
 }
 
 /** 출발 직업코드별 경로 묶음 (비율 내림차순) */

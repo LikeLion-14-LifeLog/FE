@@ -7,6 +7,8 @@ export type RouteSalary = {
   /** 중앙값은 그룹 하나일 때만 (여러 그룹을 합치면 계산 불가) */
   medianFrom: number | null;
   medianTo: number | null;
+  /** 상위 25% 연봉 차이 — 표본이 P75 기준에 못 미치면 null */
+  p75Difference: number | null;
   /** 평균 관측 연도 간격 (년) */
   meanYearGap: number;
 };

@@ -3,7 +3,11 @@ import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
 import type { Certificate, LanguageScore } from "@/types/spec/qualification";
 import type { Experience } from "@/types/spec/experience";
-import type { ApiResponse, SpecReadData } from "@/types/spec/api";
+import type {
+  ApiResponse,
+  SpecReadData,
+  SpecSaveRequest,
+} from "@/types/spec/api";
 import { getLanguageExams } from "@/apis/specSearch";
 
 /** UI Draft: Mock 검색명/로컬 ID가 포함되므로 서버 PUT DTO와 다름. */
@@ -48,6 +52,106 @@ export async function getSpecFormOptions(
   };
 }
 
+/** 스펙 화면 입력값 → 서버 임시 저장 요청 DTO (선택하지 않은 항목이 있으면 이유와 함께 예외) */
+export function toSpecSaveRequest(profile: SpecProfileDraft): SpecSaveRequest {
+  const { basicInfo } = profile;
+  if (basicInfo.jobId === null)
+    throw new Error("희망 직무를 검색해 선택해 주세요.");
+  const orNull = (value: string) => (value.trim() ? value.trim() : null);
+  const numOrNull = (value: string) =>
+    value.trim() === "" ? null : Number(value);
+
+  return {
+    birthYear: Number(basicInfo.birthYear),
+    residenceRegion: basicInfo.residenceRegion,
+    jobId: basicInfo.jobId,
+    academicAbilities: profile.educations.map((item) => {
+      if (item.majorId === null && item.type !== "HIGH_SCHOOL")
+        throw new Error("학력의 전공을 검색해 선택해 주세요.");
+      return {
+        ...(item.academicAbilityId !== null && {
+          academicAbilityId: item.academicAbilityId,
+        }),
+        type: item.type,
+        status: item.status,
+        location: item.location,
+        universityGrade: numOrNull(item.universityGrade),
+        universityStandardGrade: numOrNull(item.universityStandardGrade),
+        graduatedYearMonth: orNull(item.graduatedYearMonth) as string,
+        majorAffiliation: orNull(item.majorAffiliation) as string,
+        majorId: item.majorId as number,
+      };
+    }),
+    certificates: profile.certificates.map((item) => {
+      if (item.certificateId === null)
+        throw new Error("자격증을 검색해 선택해 주세요.");
+      return {
+        ...(item.specProfileCertificateId !== null && {
+          specProfileCertificateId: item.specProfileCertificateId,
+        }),
+        certificateId: item.certificateId,
+        acquiredYearMonth: orNull(item.acquiredYearMonth) as string,
+      };
+    }),
+    languageExamScores: profile.languageScores.map((item) => {
+      if (item.languageExamId === null)
+        throw new Error("어학 시험을 검색해 선택해 주세요.");
+      return {
+        ...(item.languageExamScoreId !== null && {
+          languageExamScoreId: item.languageExamScoreId,
+        }),
+        languageExamId: item.languageExamId,
+        scoreNumeric: numOrNull(item.scoreNumeric),
+        scoreGrade: orNull(item.scoreGrade),
+        acquiredYearMonth: orNull(item.acquiredYearMonth) as string,
+        expiresYearMonth: orNull(item.expiresYearMonth),
+      };
+    }),
+    experiences: profile.experiences.map((item) => ({
+      ...(item.experienceId !== null && { experienceId: item.experienceId }),
+      type: item.type,
+      title: item.title.trim(),
+      startedYearMonth: item.startedYearMonth,
+      endedYearMonth: orNull(item.endedYearMonth),
+      description: orNull(item.description),
+      awarded: item.awarded,
+      organizerName: item.awarded ? orNull(item.organizerName) : null,
+      awardGrade: item.awarded ? orNull(item.awardGrade) : null,
+    })),
+  };
+}
+
+/** PUT /api/spec-profiles/current/temporary — 본인 CURRENT 스펙 저장 (서버 메시지를 그대로 예외로) */
+export async function saveSpecProfile(
+  profile: SpecProfileDraft,
+  accessToken: string
+): Promise<void> {
+  const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
+  const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
+  if (!baseUrl) throw new Error("API 기본 주소가 설정되지 않았습니다.");
+
+  const response = await fetch(
+    `${baseUrl}/api/spec-profiles/current/temporary`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(toSpecSaveRequest(profile)),
+    }
+  );
+  const body = (await response.json().catch(() => null)) as {
+    success?: boolean;
+    message?: string;
+  } | null;
+  if (!response.ok || body?.success === false) {
+    throw new Error(
+      body?.message ?? `스펙 저장 실패 (HTTP ${response.status})`
+    );
+  }
+}
+
 export async function saveSpecProfileMock(
   profile: SpecProfileDraft,
   email: string
@@ -90,7 +194,7 @@ export function getSavedSpecProfileMock(
 
 export async function getSpecProfile(
   accessToken: string
-): Promise<SpecProfileDraft> {
+): Promise<SpecProfileDraft | null> {
   const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
   const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
 
@@ -107,6 +211,9 @@ export async function getSpecProfile(
       Authorization: `Bearer ${accessToken}`,
     },
   });
+
+  // 아직 등록한 스펙(CURRENT)이 없으면 빈 화면에서 새로 등록
+  if (response.status === 404) return null;
 
   if (!response.ok) {
     throw new Error(`스펙 조회 실패 (HTTP ${response.status})`);
