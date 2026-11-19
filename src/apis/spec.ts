@@ -1,4 +1,5 @@
 import { specFormOptions } from "@/constants/specFormOptions";
+import { apiClient } from "@/apis/client";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
 import type { Certificate, LanguageScore } from "@/types/spec/qualification";
@@ -303,4 +304,21 @@ export async function saveSpecProfile(
   if (body.success !== true) {
     throw new Error(body.message || "스펙 저장에 실패했습니다.");
   }
+}
+
+/** 현재 회원의 CURRENT 스펙 ID를 시뮬레이션 요청에 사용한다. */
+export async function getCurrentSpecProfileId(): Promise<number> {
+  const { data: response } = await apiClient.get<ApiResponse<SpecReadData>>(
+    "/api/spec-profile",
+  );
+  const profile = response.data;
+  if (
+    !response.success ||
+    profile?.type !== "CURRENT" ||
+    !Number.isSafeInteger(profile.specProfileId) ||
+    profile.specProfileId <= 0
+  ) {
+    throw new Error("현재 스펙 정보를 확인할 수 없습니다.");
+  }
+  return profile.specProfileId;
 }
