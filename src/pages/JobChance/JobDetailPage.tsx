@@ -128,7 +128,7 @@ const JobDetailPage = () => {
     <button
       type="button"
       onClick={() => navigate("/jobs")}
-      className="absolute top-1/2 right-full mr-4 flex -translate-y-1/2 cursor-pointer flex-col items-center gap-2 max-[1249px]:static max-[1249px]:mr-0 max-[1249px]:translate-y-0 min-[1440px]:mr-[67px]"
+      className="absolute top-[360px] right-full mr-4 flex -translate-y-1/2 cursor-pointer flex-col items-center gap-2 max-[1249px]:static max-[1249px]:mr-0 max-[1249px]:translate-y-0 min-[1440px]:mr-[67px]"
     >
       <span className="flex size-12 items-center justify-center rounded-full border border-[#e2e8f0] bg-white shadow-[0px_6px_16px_0px_rgba(15,23,41,0.08)] transition-colors hover:bg-[#f8fafc]">
         <img src="/jobs/backArrow.svg" alt="" className="size-5" />
