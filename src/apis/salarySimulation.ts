@@ -58,11 +58,11 @@ const academicMajors = [
 
 const isOneOf = <T extends string>(
   value: string,
-  values: readonly T[],
+  values: readonly T[]
 ): value is T => values.some((item) => item === value);
 
 export function toSalaryAcademicAbility(
-  education: Education,
+  education: Education
 ): SalaryAcademicAbility | null {
   const majorAffiliation = education.majorAffiliation;
   if (
@@ -102,7 +102,7 @@ export function toSalaryAcademicAbility(
 }
 
 export function buildSalaryChanges(
-  options: SalaryConditionOption[],
+  options: SalaryConditionOption[]
 ): SalaryChanges {
   const changes: SalaryChanges = {};
   const certificateIds = new Set<number>();
@@ -115,8 +115,8 @@ export function buildSalaryChanges(
         ...previousLanguages.filter(
           (score) =>
             !optionChanges.languageScores?.some(
-              (next) => next.languageExamId === score.languageExamId,
-            ),
+              (next) => next.languageExamId === score.languageExamId
+            )
         ),
         ...optionChanges.languageScores,
       ];
@@ -140,13 +140,13 @@ export function sameSalaryChanges(left: SalaryChanges, right: SalaryChanges) {
     left.experience?.durationMonths === right.experience?.durationMonths &&
     JSON.stringify(
       [...(left.languageScores ?? [])].sort(
-        (a, b) => a.languageExamId - b.languageExamId,
-      ),
+        (a, b) => a.languageExamId - b.languageExamId
+      )
     ) ===
       JSON.stringify(
         [...(right.languageScores ?? [])].sort(
-          (a, b) => a.languageExamId - b.languageExamId,
-        ),
+          (a, b) => a.languageExamId - b.languageExamId
+        )
       ) &&
     left.academic?.type === right.academic?.type &&
     left.academic?.universityGrade === right.academic?.universityGrade &&
@@ -161,7 +161,7 @@ export function buildSalarySimulationRequest(
   changes: SalaryChanges,
   companyGroupScale: SalaryCompanyScale,
   baseSpecProfileId: number,
-  educations: Education[] = [],
+  educations: Education[] = []
 ): SalarySimulationRequest | null {
   if (changes.experience) return null;
   const apiChanges: SalaryApiChanges = {};
@@ -182,7 +182,7 @@ export function buildSalarySimulationRequest(
   if (changes.academic) {
     if (changes.academic.type === "UNIVERSITY") {
       const universities = educations.filter(
-        (item) => item.type === "UNIVERSITY",
+        (item) => item.type === "UNIVERSITY"
       );
       if (
         universities.length !== 1 ||
@@ -212,21 +212,21 @@ export function buildSalarySimulationRequest(
 /** 목표 조건은 현재 스펙을 대체하지 않으며, 이미 보유한 조건을 다시 추가하지 않는다. */
 export function validateSalaryAdditions(
   changes: SalaryChanges,
-  profile: SpecProfileDraft | null,
+  profile: SpecProfileDraft | null
 ): string | null {
   if (!profile) return "먼저 현재 스펙을 등록해 주세요.";
 
   const ownedIds = new Set(
     profile.certificates
       .map((item) => item.certificateId)
-      .filter((id) => id !== null),
+      .filter((id) => id !== null)
   );
   if (changes.addCertificateIds?.some((id) => ownedIds.has(id))) {
     return "이미 보유한 자격증은 다시 추가할 수 없어요.";
   }
 
   const languageIds = (changes.languageScores ?? []).map(
-    (item) => item.languageExamId,
+    (item) => item.languageExamId
   );
   if (new Set(languageIds).size !== languageIds.length) {
     return "같은 어학 시험은 한 번만 추가할 수 있어요.";
@@ -234,7 +234,7 @@ export function validateSalaryAdditions(
   const opicGrades = ["NL", "NM", "NH", "IL", "IM1", "IM2", "IM3", "IH", "AL"];
   for (const target of changes.languageScores ?? []) {
     const existing = profile.languageScores.filter(
-      (item) => item.languageExamId === target.languageExamId,
+      (item) => item.languageExamId === target.languageExamId
     );
     if (target.scoreNumeric !== null) {
       if (
@@ -249,7 +249,7 @@ export function validateSalaryAdditions(
         existing.some(
           (item) =>
             item.scoreNumeric !== "" &&
-            Number(item.scoreNumeric) >= target.scoreNumeric!,
+            Number(item.scoreNumeric) >= target.scoreNumeric!
         )
       ) {
         return "현재 보유한 어학 점수보다 높은 목표를 입력해 주세요.";
@@ -257,14 +257,14 @@ export function validateSalaryAdditions(
     } else if (target.scoreGrade) {
       if (target.languageExamId === 7) {
         const index = opicGrades.indexOf(
-          target.scoreGrade.trim().toUpperCase(),
+          target.scoreGrade.trim().toUpperCase()
         );
         if (index < 0) return "올바른 OPIc 등급을 입력해 주세요.";
         if (
           existing.some(
             (item) =>
               item.scoreGrade &&
-              opicGrades.indexOf(item.scoreGrade.trim().toUpperCase()) >= index,
+              opicGrades.indexOf(item.scoreGrade.trim().toUpperCase()) >= index
           )
         ) {
           return "현재 보유한 어학 등급보다 높은 목표를 입력해 주세요.";
@@ -276,7 +276,8 @@ export function validateSalaryAdditions(
   }
 
   if (changes.academic?.type === "GRADUATE_SCHOOL") {
-    if (!changes.academic.details) return "석사 과정은 상세 학력 정보가 없어 아직 시뮬레이션할 수 없어요.";
+    if (!changes.academic.details)
+      return "석사 과정은 상세 학력 정보가 없어 아직 시뮬레이션할 수 없어요.";
     if (!profile.educations.some((item) => item.type === "UNIVERSITY")) {
       return "석사 진학 목표를 설정하려면 학사 정보가 필요해요.";
     }
@@ -284,7 +285,7 @@ export function validateSalaryAdditions(
       profile.educations.some(
         (item) =>
           item.type === "GRADUATE_SCHOOL_MASTER" ||
-          item.type === "GRADUATE_SCHOOL_DOCTORAL",
+          item.type === "GRADUATE_SCHOOL_DOCTORAL"
       )
     ) {
       return "이미 등록된 대학원 학력이 있어 중복 추가할 수 없어요.";
@@ -293,7 +294,7 @@ export function validateSalaryAdditions(
 
   if (changes.academic?.type === "UNIVERSITY") {
     const universities = profile.educations.filter(
-      (item) => item.type === "UNIVERSITY",
+      (item) => item.type === "UNIVERSITY"
     );
     if (universities.length !== 1)
       return "학점 변경은 학사 정보가 하나 있을 때만 가능해요.";
@@ -319,13 +320,11 @@ export function validateSalaryAdditions(
 
 /** 조건 변경 결과는 저장하지 않고 요청 시마다 새로 계산한다. */
 export async function simulateSalary(
-  request: SalarySimulationRequest,
+  request: SalarySimulationRequest
 ): Promise<SalarySimulationData> {
-  const { data: response } = await apiClient.post<ApiResponse<SalarySimulationData>>(
-    "/api/spec-profile/simulation",
-    request,
-    { timeout: 120_000 },
-  );
+  const { data: response } = await apiClient.post<
+    ApiResponse<SalarySimulationData>
+  >("/api/spec-profile/target", request, { timeout: 120_000 });
   if (!response.success || !response.data) {
     throw new Error(response.message || "연봉 시뮬레이션에 실패했습니다.");
   }
@@ -334,13 +333,11 @@ export async function simulateSalary(
 
 /** 사용자 목표와 AI 추천 대안 2개를 저장한다. */
 export async function saveSalaryTarget(
-  request: SalaryTargetSaveRequest,
+  request: SalaryTargetSaveRequest
 ): Promise<SalaryTargetSaveData> {
-  const { data: response } = await apiClient.put<ApiResponse<SalaryTargetSaveData>>(
-    "/api/spec-profile/target",
-    request,
-    { timeout: 120_000 },
-  );
+  const { data: response } = await apiClient.put<
+    ApiResponse<SalaryTargetSaveData>
+  >("/api/spec-profile/target", request, { timeout: 120_000 });
   if (!response.success || !response.data) {
     throw new Error(response.message || "목표 스펙 저장에 실패했습니다.");
   }
@@ -349,9 +346,9 @@ export async function saveSalaryTarget(
 
 /** 선택된 목표가 없다면 null을 반환한다. */
 export async function getSalaryTarget(): Promise<SalaryTargetData | null> {
-  const { data: response } = await apiClient.get<ApiResponse<SalaryTargetData | null>>(
-    "/api/spec-profile/target",
-  );
+  const { data: response } = await apiClient.get<
+    ApiResponse<SalaryTargetData | null>
+  >("/api/spec-profile/target");
   if (!response.success) {
     throw new Error(response.message || "목표 스펙 조회에 실패했습니다.");
   }

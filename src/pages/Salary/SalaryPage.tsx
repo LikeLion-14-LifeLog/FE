@@ -1,25 +1,28 @@
-import { useState } from "react";
-import { getSavedSpecProfileMock } from "@/apis/spec";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getCurrentSpecProfileId,
+  getSpecProfile,
+  type SpecProfileDraft,
+} from "@/apis/spec";
+import { getAccessToken } from "@/store/authStore";
+import { getDiagnosisView, getLatestAnalysisRunId } from "@/apis/diagnosis";
 import type {
   SalaryCompanyScale,
   SalaryTargetSaveData,
+  SalarySimulationData,
 } from "@/types/salaryApi";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   buildSalaryChanges,
   buildSalarySimulationRequest,
+  simulateSalary,
   sameSalaryChanges,
   validateSalaryAdditions,
 } from "@/apis/salarySimulation";
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
-import { hasCompletedDiagnosis } from "@/mocks/diagnosis";
-import {
-  getSalarySimulationMock,
-  getSalaryTargetSaveMock,
-  salarySimulationRequestMock,
-} from "@/mocks/salaryApi";
+import { getSalaryTargetSaveMock } from "@/mocks/salaryApi";
 import { useCurrentUser } from "@/store/authStore";
 import type { SalaryResult as DiagnosisSalaryResult } from "@/types/diagnosis";
 import type {
@@ -101,6 +104,68 @@ function getSelectedOptions(
   );
 }
 
+function SalaryChartSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="w-full animate-pulse motion-reduce:animate-none"
+    >
+      <div className="flex justify-end gap-4 pr-[5.7%]">
+        <span className="h-2 w-14 rounded-full bg-[#F0F1F2]" />
+        <span className="h-2 w-16 rounded-full bg-[#F0F1F2]" />
+      </div>
+      <svg viewBox="0 0 970 365" className="mt-2 block h-auto w-full">
+        {[65, 130, 195, 260].map((y) => (
+          <g key={y}>
+            <rect
+              x="20"
+              y={y - 3}
+              width="32"
+              height="6"
+              rx="3"
+              fill="#F0F1F2"
+            />
+            <line
+              x1="76"
+              x2="915"
+              y1={y}
+              y2={y}
+              stroke="#EDEEF0"
+              strokeWidth="1.5"
+              strokeDasharray="5 10"
+            />
+          </g>
+        ))}
+        <path
+          d="M 76 220 C 240 219, 290 172, 495 162 S 760 115, 915 103"
+          fill="none"
+          stroke="#E7E8EA"
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+        {[
+          { x: 76, y: 220 },
+          { x: 495, y: 162 },
+          { x: 915, y: 103 },
+        ].map(({ x, y }) => (
+          <circle key={x} cx={x} cy={y} r="7" fill="#E3E5E7" />
+        ))}
+        {[76, 495, 915].map((x) => (
+          <rect
+            key={x}
+            x={x - 43}
+            y="294"
+            width="86"
+            height="8"
+            rx="4"
+            fill="#EFF0F1"
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function SalaryTitle({ comparing }: { comparing: boolean }) {
   return (
     <header className="mb-[18px] flex flex-col">
@@ -123,13 +188,6 @@ function SalaryTitle({ comparing }: { comparing: boolean }) {
 
 function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const location = useLocation();
-  const diagnosisState = location.state as {
-    diagnosisSalaryResults?: DiagnosisSalaryResult[];
-    diagnosisRunId?: number;
-  } | null;
-  const diagnosisResults = diagnosisState?.diagnosisSalaryResults;
-  const fromDiagnosis =
-    Array.isArray(diagnosisResults) && diagnosisResults.length === 3;
   const email = useCurrentUser()?.email;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -147,37 +205,143 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [comparisonError, setComparisonError] = useState<string | null>(null);
 
-  const profile = email ? getSavedSpecProfileMock(email) : null;
+  const [currentSpec, setCurrentSpec] = useState<{
+    email: string;
+    id: number;
+    profile: SpecProfileDraft;
+  } | null>(null);
+  const [profileError, setProfileError] = useState(false);
+  const [simulationRetry, setSimulationRetry] = useState(0);
+  const [settledRequests, setSettledRequests] = useState(0);
+  const simulationCache = useRef(new Map<string, SalarySimulationData>());
+  const inFlight = useRef(false);
+  const lastAttempt = useRef<string | null>(null);
+  const lastSeenKey = useRef<string | null>(null);
+  const currentRequestKey = useRef<string | null>(null);
+  const mounted = useRef(false);
+  const [simulation, setSimulation] = useState<{
+    key: string;
+    data: SalarySimulationData | null;
+    error: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!email || locked) return;
+    let active = true;
+    const token = getAccessToken();
+    if (!token) return;
+
+    Promise.all([getSpecProfile(token), getCurrentSpecProfileId()])
+      .then(([profile, id]) => {
+        if (active) setCurrentSpec({ email, id, profile });
+      })
+      .catch(() => {
+        if (active) setProfileError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [email, locked]);
+
+  const profile = currentSpec?.email === email ? currentSpec.profile : null;
+  const profileId = currentSpec?.email === email ? currentSpec.id : null;
   const hasChanges = !sameSalaryChanges(changes, {});
   const conditionError = hasChanges
     ? validateSalaryAdditions(changes, profile)
     : null;
-  const request =
-    !locked &&
-    buildSalarySimulationRequest(
-      changes,
-      companyGroup,
-      salarySimulationRequestMock.baseSpecProfileId,
-      profile?.educations ?? []
-    );
-  const result = fromDiagnosis
-    ? null
-    : request
-      ? getSalarySimulationMock(request)
-      : null;
-  const comparisonKey = request ? JSON.stringify(request) : null;
+  const request = useMemo(
+    () =>
+      profileId && profile && !locked && !conditionError
+        ? buildSalarySimulationRequest(
+            changes,
+            companyGroup,
+            profileId,
+            profile.educations
+          )
+        : null,
+    [changes, companyGroup, profileId, profile, locked, conditionError]
+  );
+  const requestKey = request ? JSON.stringify(request) : null;
+
+  useEffect(() => {
+    currentRequestKey.current = requestKey;
+  }, [requestKey]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!request || !requestKey) return;
+    if (lastSeenKey.current !== requestKey) {
+      lastSeenKey.current = requestKey;
+      lastAttempt.current = null;
+    }
+
+    const cached = simulationCache.current.get(requestKey);
+    if (cached) {
+      if (simulation?.key !== requestKey || simulation.error) {
+        setSimulation({ key: requestKey, data: cached, error: false });
+      }
+      return;
+    }
+
+    const attemptKey = `${requestKey}:${simulationRetry}`;
+    if (inFlight.current || lastAttempt.current === attemptKey) return;
+
+    const timer = window.setTimeout(() => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      lastAttempt.current = attemptKey;
+
+      void simulateSalary(request)
+        .then((data) => {
+          const cache = simulationCache.current;
+          if (cache.size >= 6) cache.delete(cache.keys().next().value!);
+          cache.set(requestKey, data);
+
+          if (mounted.current && currentRequestKey.current === requestKey) {
+            setSimulation({ key: requestKey, data, error: false });
+          }
+        })
+        .catch(() => {
+          if (!mounted.current) return;
+          if (currentRequestKey.current === requestKey) {
+            setSimulation({ key: requestKey, data: null, error: true });
+          } else if (lastAttempt.current === attemptKey) {
+            lastAttempt.current = null;
+          }
+        })
+        .finally(() => {
+          inFlight.current = false;
+          if (mounted.current) setSettledRequests((count) => count + 1);
+        });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    request,
+    requestKey,
+    simulationRetry,
+    settledRequests,
+    simulation?.key,
+    simulation?.error,
+  ]);
+
+  const result = simulation?.key === requestKey ? simulation.data : null;
+  const simulationLoading = !!requestKey && simulation?.key !== requestKey;
+  const simulationError = simulation?.key === requestKey && simulation.error;
+  const previewLoading =
+    !locked && !profileError && (!profile || simulationLoading);
+  const comparisonKey = requestKey;
   const compareParams = new URLSearchParams(searchParams);
   compareParams.set("view", "compare");
 
   const openComparison = async () => {
     if (locked || comparisonLoading) return;
-
-    if (fromDiagnosis) {
-      setComparisonError(
-        "진단 결과 기준의 조건별 연봉 예측은 시뮬레이터 API 연동 후 제공됩니다."
-      );
-      return;
-    }
 
     if (conditionError) {
       setComparisonError(conditionError);
@@ -289,20 +453,7 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     );
   }
 
-  const baselineRequest =
-    !result && !fromDiagnosis
-      ? buildSalarySimulationRequest(
-          {},
-          companyGroup,
-          salarySimulationRequestMock.baseSpecProfileId,
-          profile?.educations ?? []
-        )
-      : null;
-  const baseline = baselineRequest
-    ? getSalarySimulationMock(baselineRequest)
-    : null;
-  const baseResults =
-    diagnosisResults ?? (result ?? baseline)?.base.salaryResults ?? [];
+  const baseResults = result?.base.salaryResults ?? [];
   const simulatedResults = result?.simulated?.salaryResults ?? [];
   const startingSalary = baseResults.find(
     ({ annual }) => annual === 0
@@ -321,31 +472,29 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
     upper: item.annualIncomeMax,
   }));
   const comparisonData = result?.simulated
-    ? simulatedResults
-        .filter(({ annual }) => annual === 0)
-        .map(({ annual, annualIncomeExpected }) => ({
-          year: annual,
-          salary: annualIncomeExpected,
-        }))
+    ? simulatedResults.map(({ annual, annualIncomeExpected }) => ({
+        year: annual,
+        salary: annualIncomeExpected,
+      }))
     : null;
-  const previewMessage = fromDiagnosis
-    ? "진단 당시 예상 연봉을 기준으로 표시합니다. 조건 변경 후 연봉은 실제 시뮬레이터 API 연동 후 확인할 수 있습니다."
+  const previewMessage = profileError
+    ? "현재 스펙을 불러오지 못했습니다. 페이지를 새로고침해 주세요."
     : (conditionError ??
-      (!request && changes.academic?.type === "UNIVERSITY"
-        ? "학점 변경은 현재 스펙에 유효한 학사 정보가 하나 등록되어 있어야 적용할 수 있어요."
-        : !result
-          ? companyGroup !== "LARGE"
-            ? "현재 기업군은 예측 Mock을 지원하지 않아요. 실제 연봉 예측은 API 연동 후 제공됩니다."
-            : "현재 입력한 조건에 대응하는 예측 Mock이 없어요. 입력 내용은 유지되며, 실제 예측은 API 연동 후 제공됩니다."
-          : result.simulated
-            ? [
-                result.preparationPeriod,
-                result.estimatedCost,
-                result.decisionCriteria,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요."));
+      (!request && hasChanges && profile
+        ? "선택한 조건을 요청 데이터로 변환할 수 없습니다. 입력값을 확인해 주세요."
+        : simulationError
+          ? "예상 연봉을 조회하지 못했습니다. 조건을 변경하거나 다시 시도해 주세요."
+          : simulationLoading || !profile
+            ? "예상 연봉을 계산하고 있습니다."
+            : result?.simulated
+              ? [
+                  result.preparationPeriod,
+                  result.estimatedCost,
+                  result.decisionCriteria,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "현재 스펙 기준 예상 연봉입니다. 조건을 추가하면 비교할 수 있어요."));
 
   return (
     <div className="w-full lg:-mb-8">
@@ -420,16 +569,23 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   <p className="text-[13px] text-text-secondary">
                     현재 예상 초봉
                   </p>
-                  <p className="mt-2 text-[26px] font-bold tracking-[-0.04em] sm:text-[34px]">
-                    {startingSalary === undefined
-                      ? "–"
-                      : formatManwon(startingSalary)}
-                    {startingSalary !== undefined && (
-                      <span className="ml-0.5 text-[13px] tracking-normal">
-                        만 원
-                      </span>
-                    )}
-                  </p>
+                  {previewLoading ? (
+                    <div
+                      aria-hidden="true"
+                      className="mt-3 h-7 w-28 animate-pulse rounded-lg bg-[#F0F1F2] motion-reduce:animate-none sm:h-8"
+                    />
+                  ) : (
+                    <p className="mt-2 text-[26px] font-bold tracking-[-0.04em] sm:text-[34px]">
+                      {startingSalary === undefined
+                        ? "–"
+                        : formatManwon(startingSalary)}
+                      {startingSalary !== undefined && (
+                        <span className="ml-0.5 text-[13px] tracking-normal">
+                          만 원
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 <span aria-hidden="true" className="pb-1 text-[17px]">
@@ -440,32 +596,43 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   <p className="text-[13px] text-text-secondary">
                     변경 후 예상 초봉
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
-                      {changedSalary === undefined
-                        ? "–"
-                        : formatManwon(changedSalary)}
-                      {changedSalary !== undefined && (
-                        <span className="ml-0.5 text-[13px]">만 원</span>
+                  {previewLoading ? (
+                    <div
+                      aria-hidden="true"
+                      className="mt-3 h-7 w-28 animate-pulse rounded-lg bg-[#F0F1F2] motion-reduce:animate-none sm:h-8"
+                    />
+                  ) : (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <p className="text-[26px] font-bold text-brand-strong sm:text-[34px]">
+                        {changedSalary === undefined
+                          ? "–"
+                          : formatManwon(changedSalary)}
+                        {changedSalary !== undefined && (
+                          <span className="ml-0.5 text-[13px]">만 원</span>
+                        )}
+                      </p>
+                      {salaryDelta !== null && (
+                        <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
+                          {salaryDelta > 0 ? "+" : ""}
+                          {formatManwon(salaryDelta)}만 원
+                        </span>
                       )}
-                    </p>
-                    {salaryDelta !== null && (
-                      <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] text-brand-strong">
-                        {salaryDelta > 0 ? "+" : ""}
-                        {formatManwon(salaryDelta)}만 원
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="border-t border-border pt-5 pb-3">
                 <div className="mx-auto max-w-[920px]">
-                  <SalaryChart
-                    data={chartData}
-                    comparisonData={comparisonData}
-                    wide
-                  />
+                  {previewLoading ? (
+                    <SalaryChartSkeleton />
+                  ) : (
+                    <SalaryChart
+                      data={chartData}
+                      comparisonData={comparisonData}
+                      wide
+                    />
+                  )}
                 </div>
               </div>
 
@@ -477,8 +644,19 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
                   role="status"
                   className="mt-1 text-[13px] leading-5 text-text-secondary"
                 >
-                  {previewMessage}
+                  {previewLoading
+                    ? "AI가 예상 연봉을 분석하고 있어요. 결과가 나올 때까지 이 화면에서 확인할 수 있어요."
+                    : previewMessage}
                 </p>
+                {simulationError && (
+                  <button
+                    type="button"
+                    onClick={() => setSimulationRetry((value) => value + 1)}
+                    className="mt-2 text-[12px] font-semibold text-brand-strong hover:underline"
+                  >
+                    다시 시도
+                  </button>
+                )}
               </div>
             </section>
 
@@ -560,7 +738,14 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
               <button
                 type="button"
                 onClick={openComparison}
-                disabled={!hasChanges || !!conditionError || comparisonLoading}
+                disabled={
+                  !hasChanges ||
+                  !!conditionError ||
+                  comparisonLoading ||
+                  simulationLoading ||
+                  !!simulationError ||
+                  !result
+                }
                 className="flex w-full items-center justify-between gap-3 py-5 text-left text-[14px] font-bold text-brand-strong transition-[filter] duration-150 enabled:cursor-pointer enabled:hover:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {comparisonLoading
@@ -671,10 +856,51 @@ export default function SalaryPage() {
     diagnosisState?.diagnosisRunId &&
     diagnosisState.diagnosisSalaryResults?.length === 3
   );
+  const [access, setAccess] = useState<{
+    email: string;
+    status: "ready" | "locked" | "error";
+  } | null>(null);
+
+  useEffect(() => {
+    if (!email || fromDiagnosis) return;
+    let active = true;
+    getLatestAnalysisRunId()
+      .then((runId) => getDiagnosisView(email, runId))
+      .then((result) => {
+        if (active)
+          setAccess({
+            email,
+            status: result.status === "completed" ? "ready" : "locked",
+          });
+      })
+      .catch(() => {
+        if (active) setAccess({ email, status: "error" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [email, fromDiagnosis]);
+
+  if (!email) return <p className="py-12 text-center">로그인이 필요합니다.</p>;
+  if (
+    !fromDiagnosis &&
+    (access?.email !== email || access.status === "error")
+  ) {
+    return (
+      <p
+        role="status"
+        className="py-12 text-center text-[13px] text-text-secondary"
+      >
+        {access?.email === email
+          ? "진단 상태를 확인하지 못했습니다. 페이지를 새로고침해 주세요."
+          : "진단 상태를 확인하는 중입니다."}
+      </p>
+    );
+  }
   return (
     <SalarySimulator
       key={`user:${email}`}
-      locked={!hasCompletedDiagnosis(email) && !fromDiagnosis}
+      locked={!fromDiagnosis && access?.status !== "ready"}
     />
   );
 }
