@@ -1,5 +1,6 @@
 import type {
   CareerStartCondition,
+  RouteSalary,
   FirstJobNode,
   NextStepNode,
 } from "@/types/career";
@@ -49,6 +50,16 @@ const COLOR = {
 const DRAW_LENGTH = 1000;
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+
+/** 데이터가 없는 칸 */
+const EMPTY = "-";
+
+/** "▲ +8% (+309만 상승)" / "▼ -3% (-120만 하락)" */
+const formatRise = ({ meanDifference, meanFrom }: RouteSalary) => {
+  const percent = Math.round((meanDifference / meanFrom) * 100);
+  const up = meanDifference >= 0;
+  return `${up ? "▲ +" : "▼ "}${percent}% (${formatManwonDiff(meanDifference)} ${up ? "상승" : "하락"})`;
+};
 
 const curve = (x1: number, y1: number, x2: number, y2: number) => {
   const mx = (x1 + x2) / 2;
@@ -286,22 +297,18 @@ const CareerPathGraph = ({
                 className={`shrink-0 text-[11.4px] font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
               >
                 {formatPercent(job.share)}
-                {i === 0 && " (최다)"}
+                {i === 0 && " (최다 이동)"}
               </span>
             </span>
             <span
               className={`mt-1 text-[14px] font-bold ${active ? "text-teal-600" : "text-slate-700"}`}
             >
-              {job.salary
-                ? `평균 연봉 ${formatManwon(job.salary.meanTo)}`
-                : `관측 ${job.observedSegments}구간`}
+              평균 연봉 {job.salary ? formatManwon(job.salary.meanTo) : EMPTY}
             </span>
             <span
               className={`mt-0.5 text-[10.9px] ${active ? "font-bold text-slate-500" : "text-slate-400"}`}
             >
-              {job.salary
-                ? `관측 ${job.observedSegments}구간 · 출발 대비 ${formatManwonDiff(job.salary.meanDifference)}`
-                : `${job.observedYearIntervals}개 연도 구간에서 관측`}
+              {job.observedSegments}구간 관측{i === 0 && " (1순위 경로)"}
             </span>
           </CareerNode>
         );
@@ -335,19 +342,15 @@ const CareerPathGraph = ({
                   >
                     {step.title}
                   </span>
-                  {step.badge && (
-                    <span className="shrink-0 text-[11.4px] font-bold text-teal-700">
-                      {step.badge}
-                    </span>
-                  )}
+                  <span className="shrink-0 text-[11.4px] font-bold text-teal-700">
+                    {step.badge ?? `이동 ${formatPercent(step.share)}`}
+                  </span>
                 </span>
                 <span className="text-[19.8px] font-bold text-teal-600">
-                  {formatPercent(step.share)}
+                  {step.salary ? formatManwon(step.salary.meanTo) : `${EMPTY} 만 원`}
                 </span>
                 <span className="text-[11.9px] font-bold text-teal-700">
-                  {step.salary
-                    ? `평균 ${formatManwon(step.salary.meanTo)} (${formatManwonDiff(step.salary.meanDifference)})`
-                    : `관측 ${step.observedSegments}구간 · ${step.observedYearIntervals}개 연도 구간`}
+                  {step.salary ? formatRise(step.salary) : EMPTY}
                 </span>
               </>
             ) : (
@@ -359,11 +362,9 @@ const CareerPathGraph = ({
                   {step.title}
                 </span>
                 <span className="mt-0.5 text-[12.9px] font-bold text-slate-700">
-                  {formatPercent(step.share)}{" "}
+                  {step.salary ? formatManwon(step.salary.meanTo) : `${EMPTY} 만 원`}{" "}
                   <span className="text-[10.9px] text-slate-500">
-                    {step.salary
-                      ? `· 평균 ${formatManwon(step.salary.meanTo)}`
-                      : `(관측 ${step.observedSegments}구간)`}
+                    (이동 {formatPercent(step.share)})
                   </span>
                 </span>
               </>

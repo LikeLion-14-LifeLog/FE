@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCareerRouteDetail,
   getCareerRoutes,
@@ -62,12 +63,30 @@ type LoadState =
   | { status: "done"; data: CareerRoutesData };
 
 const CareerPage = () => {
+  const navigate = useNavigate();
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
-  const [rootCode, setRootCode] = useState<string | null>(null);
-  // 1차 이동 직업 → 2차 경로 순서로 선택 (처음엔 아무것도 선택 안 됨)
-  const [firstJobId, setFirstJobId] = useState<string | null>(null);
-  const [stepId, setStepId] = useState<string | null>(null);
-  const [majorField, setMajorField] = useState<MajorFilter>(ALL_MAJORS);
+  // 선택 상태는 URL 쿼리에 둔다 → 상세 페이지에서 돌아오거나 새로고침해도 선택한 노드가 유지된다
+  const [params, setParams] = useSearchParams();
+  const rootCode = params.get("root");
+  const firstJobId = params.get("first");
+  const stepId = params.get("step");
+  const majorParam = params.get("major") as MajorFilter | null;
+  const majorField: MajorFilter =
+    majorParam && MAJOR_OPTIONS.some(({ value }) => value === majorParam)
+      ? majorParam
+      : ALL_MAJORS;
+  const updateParams = (changes: Record<string, string | null>) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) next.delete(key);
+          else next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
   const [routeDetails, setRouteDetails] = useState<RouteDetailCache>({});
   const requestedRoutes = useRef(new Set<string>());
 
@@ -120,13 +139,6 @@ const CareerPage = () => {
     token && salaryResult?.token === token && "groups" in salaryResult
       ? salaryResult.groups
       : null;
-  const salaryMessage = !token
-    ? "로그인하면 경로별 관측 연봉 통계를 함께 볼 수 있습니다."
-    : salaryResult?.token !== token
-      ? "경로별 연봉 통계를 불러오는 중입니다..."
-      : "error" in salaryResult
-        ? salaryResult.error
-        : undefined;
   const salaries = useMemo(
     () =>
       salaryGroups
@@ -226,16 +238,14 @@ const CareerPage = () => {
   }, [selectedSegments, routeDetails]);
 
   const handleSelectRoot = (code: string) => {
-    setRootCode(code);
-    setFirstJobId(null);
-    setStepId(null);
+    updateParams({ root: code, first: null, step: null });
   };
 
   const handleSelectFirstJob = (id: string) => {
     // 1차를 바꾸면 이전 2차 선택은 초기화
-    if (id !== firstJobId) setStepId(null);
-    setFirstJobId(id);
+    updateParams(id !== firstJobId ? { first: id, step: null } : { first: id });
   };
+
 
   if (load.status !== "done" || !tree || !activeRoot) {
     return (
@@ -279,7 +289,9 @@ const CareerPage = () => {
               label="전공"
               options={MAJOR_OPTIONS}
               value={majorField}
-              onChange={setMajorField}
+              onChange={(value) =>
+                updateParams({ major: value === ALL_MAJORS ? null : value })
+              }
             />
           </div>
         )}
@@ -304,17 +316,22 @@ const CareerPage = () => {
             selectedFirstJobId={firstJobId}
             selectedStepId={stepId}
             onSelectFirstJob={handleSelectFirstJob}
-            onSelectStep={setStepId}
+            onSelectStep={(id) => updateParams({ step: id })}
           />
         </section>
 
-        {/* TODO: 경로 상세 API 연동 후 onDetailClick 연결 (/career/:routeId) */}
         <RouteSummaryPanel
           summary={summary}
           notice={`${load.data.notice ?? DEFAULT_NOTICE}${salaryGroups ? ` ${SALARY_NOTICE}` : ""}`}
           salaryScaleMax={salaryScaleMax}
-          salaryMessage={salaryMessage}
           yearly={yearly}
+          onDetailClick={() =>
+            stepId &&
+            navigate(`/career/${stepId}`, {
+              // 상세에서 "전체 경로 지도로 돌아가기" 시 지금 선택 상태로 복귀
+              state: { back: `/career?${params}` },
+            })
+          }
         />
       </div>
     </div>

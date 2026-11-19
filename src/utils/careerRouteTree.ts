@@ -153,18 +153,28 @@ export function buildCareerRouteTree(
         observedYearIntervals: second.observedYearIntervals,
         salary,
         variant: k === 0 ? "jump" : "stay",
-        badge: k === 0 ? "최다 이동" : undefined,
+        badge: undefined,
       });
 
       summaries[id] = {
         title: `${first.targetName} ➔ ${second.targetName}`,
-        share: second.shareOfSourceSegmentsPercent,
-        caption: `${first.targetName} 출발 관측 구간 중 비율`,
         salary,
-        rows: buildSummaryRows(rootName, first, second, salary),
+        rows: buildSummaryRows(second, salary),
       };
     });
   }
+
+  // 연봉 차이가 가장 큰 2차 경로에 "최대 상승 구간" 표시 (연봉 데이터가 있을 때만)
+  const topRise = nextSteps.reduce<NextStepNode | null>(
+    (best, step) =>
+      step.salary &&
+      step.salary.meanDifference > 0 &&
+      (!best?.salary || step.salary.meanDifference > best.salary.meanDifference)
+        ? step
+        : best,
+    null,
+  );
+  if (topRise) topRise.badge = "최대 상승 구간";
 
   return {
     start: {
@@ -178,56 +188,30 @@ export function buildCareerRouteTree(
   };
 }
 
+/**
+ * 우측 패널 항목 — 원래 디자인의 5칸을 유지하고, 받을 수 있는 데이터만 채운다.
+ * (근속 대비·주요 평가 기준은 제공되는 데이터가 없어 비워 둔다)
+ */
 function buildSummaryRows(
-  rootName: string,
-  first: CareerRoute,
   second: CareerRoute,
   salary: RouteSalary | undefined,
 ): RouteSummaryRow[] {
-  const path = {
-    label: "전체 경로",
-    value: `${rootName} ➔ ${first.targetName} ➔ ${second.targetName}`,
-  };
-  const shares: RouteSummaryRow = {
-    label: "이동 비율 (1차 / 2차)",
-    value: `${formatPercent(first.shareOfSourceSegmentsPercent)} / ${formatPercent(second.shareOfSourceSegmentsPercent)}`,
-    tone: "brandStrong",
-  };
-
-  if (!salary) {
-    return [
-      path,
-      shares,
-      {
-        label: "관측 구간 수 (1차 / 2차)",
-        value: `${first.observedSegments} / ${second.observedSegments}구간`,
-      },
-      {
-        label: "관측 연도 구간 (1차 / 2차)",
-        value: `${first.observedYearIntervals} / ${second.observedYearIntervals}개`,
-      },
-    ];
-  }
-
-  const median =
-    salary.medianFrom !== null && salary.medianTo !== null
-      ? `${formatManwon(salary.medianFrom)} → ${formatManwon(salary.medianTo)}`
-      : "-";
-
   return [
-    path,
-    shares,
     {
-      label: "평균 연봉 차이",
-      value: `${formatManwonDiff(salary.meanDifference)} 원`,
-      tone: "brand",
+      label: "이동 전 평균 연봉",
+      value: salary ? formatManwon(salary.meanFrom) : "-",
     },
-    { label: "연봉 중앙값 (출발 → 도착)", value: median },
     {
-      label: "평균 관측 연도 간격",
-      value: `${salary.meanYearGap.toFixed(1)}년`,
+      label: "평균 이동 간격",
+      value: salary ? `약 ${salary.meanYearGap.toFixed(1)}년` : "-",
     },
-    { label: "연봉 분석 구간 수", value: `${salary.segmentCount}구간` },
+    {
+      label: "이동 비율",
+      value: formatPercent(second.shareOfSourceSegmentsPercent),
+      tone: "brandStrong",
+    },
+    { label: "동일 기업 근속 대비", value: "-", tone: "brand" },
+    { label: "주요 평가 기준", value: "-" },
   ];
 }
 
