@@ -7,7 +7,12 @@ import {
   saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
-import { getActiveMockDiagnosis, startMockDiagnosis } from "@/mocks/diagnosis";
+import {
+  ANALYSIS_ALREADY_RUNNING,
+  getLatestDiagnosisRunId,
+  startDiagnosis,
+} from "@/apis/diagnosis";
+import { toApiError } from "@/apis/client";
 import { getAccessToken, useCurrentUser } from "@/store/authStore";
 import { saveDefaultCareerJobOnce } from "@/store/defaultCareerJobStore";
 import type { SpecFormOptions } from "@/types/spec/profile";
@@ -140,11 +145,6 @@ function SpecFormPage({ email }: { email: string | undefined }) {
       return;
     }
 
-    if (getActiveMockDiagnosis(email)) {
-      setNotice("분석 중에는 스펙을 수정할 수 없습니다.");
-      return;
-    }
-
     setSaving(true);
     setNotice("");
 
@@ -172,13 +172,6 @@ function SpecFormPage({ email }: { email: string | undefined }) {
       return;
     }
 
-    const active = getActiveMockDiagnosis(email);
-
-    if (active) {
-      navigate(`/diagnosis/loading?runId=${active.runId}`);
-      return;
-    }
-
     setSaving(true);
     setNotice("");
 
@@ -186,11 +179,24 @@ function SpecFormPage({ email }: { email: string | undefined }) {
       await saveToServer();
       await saveSpecProfileMock(profile, email);
       rememberFirstJob(email);
-      const run = startMockDiagnosis(profile, email);
+      const run = await startDiagnosis();
       navigate(`/diagnosis/loading?runId=${run.runId}`);
     } catch (error: unknown) {
+      const { message } = toApiError(error);
+      const code =
+        toApiError(error).code ?? (error as { code?: string } | null)?.code;
+      // 이미 진행 중인 분석이 있으면(스펙 저장도 409 로 거절됨) 그 진행 화면으로 보낸다
+      if (code === ANALYSIS_ALREADY_RUNNING) {
+        const runId = await getLatestDiagnosisRunId().catch(() => null);
+        if (runId !== null) {
+          navigate(`/diagnosis/loading?runId=${runId}`);
+          return;
+        }
+      }
       setNotice(
-        error instanceof Error && error.message
+        message
+          ? `분석을 시작하지 못했습니다. ${message}`
+          : error instanceof Error && error.message
           ? `분석을 시작하지 못했습니다. ${error.message}`
           : "분석을 시작하지 못했습니다. 다시 시도해 주세요."
       );

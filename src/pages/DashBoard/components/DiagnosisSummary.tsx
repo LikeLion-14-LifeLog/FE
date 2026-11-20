@@ -6,7 +6,10 @@ import TextLink from "./TextLink";
 
 type DiagnosisSummaryProps = {
   profile: CardProfile;
-  diagnosis: DiagnosisResult;
+  /** 진단 전이면 연봉 없이 저장된 스펙만 표시 */
+  diagnosis: DiagnosisResult | null;
+  /** 저장된 스펙 기준 핵심 스펙 */
+  specs: string[];
   editSpecPath?: string;
 };
 
@@ -16,9 +19,9 @@ const HERO_BACKGROUND =
 const DiagnosisSummary = ({
   profile,
   diagnosis,
+  specs,
   editSpecPath = "/spec",
 }: DiagnosisSummaryProps) => {
-  const { expectedSalary, topPercent, specs } = diagnosis;
 
   return (
     <section
@@ -34,21 +37,29 @@ const DiagnosisSummary = ({
 
       <div className="flex min-w-0 flex-col">
         <div className="pt-[2.5px]">
-          <StatusBadge>진단 완료</StatusBadge>
+          <StatusBadge>{diagnosis ? "진단 완료" : "스펙 등록 완료"}</StatusBadge>
         </div>
 
         <h1 className="mt-[14px] text-[25px] leading-[37.5px] tracking-[-0.8px] text-text-primary">
           현재 스펙 기반 예상 초봉
         </h1>
 
-        <p className="mt-[5px] tracking-[-1.16px]">
-          <strong className="text-[29px] leading-[43.5px] font-bold text-brand-strong">
-            {expectedSalary.toLocaleString()}만 원
-          </strong>{" "}
-          <span className="text-[17px] leading-[25.5px] font-bold text-text-primary">
-            (비교 집단 상위 {topPercent}%)
-          </span>
-        </p>
+        {diagnosis ? (
+          <p className="mt-[5px] tracking-[-1.16px]">
+            <strong className="text-[29px] leading-[43.5px] font-bold text-brand-strong">
+              {diagnosis.expectedSalary.toLocaleString()}만 원
+            </strong>{" "}
+            {diagnosis.topPercent !== null && (
+              <span className="text-[17px] leading-[25.5px] font-bold text-text-primary">
+                (비교 집단 상위 {diagnosis.topPercent}%)
+              </span>
+            )}
+          </p>
+        ) : (
+          <p className="mt-[5px] text-[17px] leading-[43.5px] font-bold tracking-[-0.5px] text-[#b7c2be]">
+            진단을 시작하면 예상 초봉을 확인할 수 있어요
+          </p>
+        )}
 
         <p className="mt-[13px] text-[10px] leading-[17px] tracking-[0.096px] text-[#788580]">
           한국고용정보원 청년패널 및 IT 기업 채용 데이터를 기반으로, 현재 조건과
@@ -57,7 +68,7 @@ const DiagnosisSummary = ({
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <h2 className="text-[9px] leading-[13.5px] font-bold tracking-[0.096px] text-text-primary">
-            현재 산출에 반영된 핵심 스펙
+            {diagnosis ? "현재 산출에 반영된 핵심 스펙" : "저장된 내 핵심 스펙"}
           </h2>
           <TextLink to={editSpecPath}>내 스펙 입력·수정</TextLink>
         </div>

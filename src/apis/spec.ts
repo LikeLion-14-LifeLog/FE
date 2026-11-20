@@ -121,7 +121,7 @@ export function toSpecSaveRequest(profile: SpecProfileDraft): SpecSaveRequest {
   };
 }
 
-/** PUT /api/spec-profiles/current/temporary — 본인 CURRENT 스펙 저장 (서버 메시지를 그대로 예외로) */
+/** PUT /api/spec-profile/temporary — 본인 CURRENT 스펙 저장 (서버 메시지를 그대로 예외로) */
 export async function saveSpecProfile(
   profile: SpecProfileDraft,
   accessToken: string
@@ -131,7 +131,7 @@ export async function saveSpecProfile(
   if (!baseUrl) throw new Error("API 기본 주소가 설정되지 않았습니다.");
 
   const response = await fetch(
-    `${baseUrl}/api/spec-profiles/current/temporary`,
+    `${baseUrl}/api/spec-profile/temporary`,
     {
       method: "PUT",
       headers: {
@@ -143,11 +143,14 @@ export async function saveSpecProfile(
   );
   const body = (await response.json().catch(() => null)) as {
     success?: boolean;
+    code?: string;
     message?: string;
   } | null;
   if (!response.ok || body?.success === false) {
-    throw new Error(
-      body?.message ?? `스펙 저장 실패 (HTTP ${response.status})`
+    // 분석 진행 중(409 ANALYSIS_ALREADY_RUNNING) 등을 화면에서 구분할 수 있게 서버 코드를 함께 넘긴다
+    throw Object.assign(
+      new Error(body?.message ?? `스펙 저장 실패 (HTTP ${response.status})`),
+      { code: body?.code }
     );
   }
 }

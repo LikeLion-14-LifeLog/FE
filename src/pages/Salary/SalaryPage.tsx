@@ -11,7 +11,7 @@ import {
 import chevronDown from "@/assets/icons/chevronDown.svg";
 import SalaryChart from "@/components/SalaryChart";
 import { salaryConditions } from "@/mocks/salaryConditions";
-import { hasCompletedDiagnosis } from "@/mocks/diagnosis";
+import { completedRun, useLatestDiagnosis } from "@/hooks/useLatestDiagnosis";
 import {
   getSalarySimulationMock,
   getSalaryTargetSaveMock,
@@ -636,10 +636,12 @@ function SalarySimulator({ locked = false }: { locked?: boolean }) {
 
 export default function SalaryPage() {
   const email = useCurrentUser()?.email;
+  const latest = useLatestDiagnosis();
+  // 완료된 진단이 있어야 시뮬레이터를 연다 (확인 중에는 잠근 상태로 표시)
   return (
     <SalarySimulator
       key={`user:${email}`}
-      locked={!hasCompletedDiagnosis(email)}
+      locked={!completedRun(latest)}
     />
   );
 }
