@@ -1,0 +1,58 @@
+import type { SalaryAcademicAbility, SalaryExperience } from "./salaryApi";
+
+export type SalaryConditionField =
+  "EXPERIENCE" | "CERTIFICATE" | "LANGUAGE" | "ACADEMIC";
+
+export type SalaryChanges = {
+  experience?: {
+    type: "INTERNSHIP" | "TRAINING";
+    durationMonths: number;
+  } | null;
+  experiences?: SalaryExperience[];
+  addCertificateIds?: number[];
+  languageScores?: {
+    languageExamId: number;
+    scoreNumeric: number | null;
+    scoreGrade: string | null;
+  }[];
+  academic?: {
+    type: "UNIVERSITY" | "GRADUATE_SCHOOL";
+    universityGrade?: number;
+    details?: SalaryAcademicAbility;
+    majorName?: string;
+  };
+};
+
+export type SalaryConditionOption = {
+  optionValue: string;
+  label: string;
+  summary?: string;
+  description?: string;
+  keywords?: string[];
+  changes: SalaryChanges;
+};
+
+export type SalaryCondition = {
+  field: SalaryConditionField;
+  label: string;
+  defaultSummary: string;
+  options: SalaryConditionOption[];
+};
+
+export type SalaryComparisonOption = {
+  optionKey: string;
+  title: string;
+  incomeExpected: number;
+  delta: number;
+  prepPeriod: string;
+  estimatedCost: number;
+  costNote: string;
+  fitDescription: string;
+  changes: SalaryChanges;
+};
+
+export type SalaryComparison = {
+  options: SalaryComparisonOption[];
+  basis: string;
+  notice: string;
+};
