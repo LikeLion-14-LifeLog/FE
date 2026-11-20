@@ -73,6 +73,18 @@ const toSpecLines = (
     .filter(filter)
     .map((item) => `${specLabel(item)} · ${scope} ${item.sharePercent}%`);
 
+/**
+ * TODO(목데이터): 표본 부족으로 스펙 비교 항목이 비면 예시 1개를 보여 준다.
+ * 사용자 스펙·선택 경로와 상관없이 항상 참인 문구만 쓴다 (출발 직업은 이 경로의 정의상 공통,
+ * 도착 직업 관련 실무 경험은 어떤 직업이든 유효한 준비). 지어낸 비율은 넣지 않는다.
+ * 비로그인(specs 없음)은 안내 문구를 그대로 보여 준다.
+ */
+const withMockSpec = (
+  lines: string[],
+  specs: CareerRouteSpecs | undefined,
+  mock: string,
+) => (lines.length || !specs ? lines : [mock]);
+
 /** 연도 구간을 응답자 수로 가중한 평균 관측 연도 간격 */
 function meanGap(intervals: CareerGraphEdge[]) {
   const total = intervals.reduce((sum, e) => sum + e.distinctRespondents, 0);
@@ -142,12 +154,16 @@ export function buildCareerRouteDetail(
       },
     ],
     // 도착 직업 응답자 스펙 중 내 현재 스펙과 같은 것 / 이 경로 출발 시점 스펙 중 내가 없는 것
-    matchedRequirements: toSpecLines(
-      specs?.requirements,
-      "도착 직업 응답자",
-      (item) => item.matched,
+    matchedRequirements: withMockSpec(
+      toSpecLines(specs?.requirements, "도착 직업 응답자", (item) => item.matched),
+      specs,
+      `${route.sourceName} 출발 · 이 경로 응답자 공통 이력`,
     ),
-    recommendedExperiences: toSpecLines(specs?.recommendations, "이 경로 응답자"),
+    recommendedExperiences: withMockSpec(
+      toSpecLines(specs?.recommendations, "이 경로 응답자"),
+      specs,
+      `${route.targetName} 직무 관련 실무·프로젝트 경험`,
+    ),
     timing,
     raises: [
       {
