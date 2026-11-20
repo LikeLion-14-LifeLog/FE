@@ -7,7 +7,6 @@ import AuthCheckbox from "./components/AuthCheckbox";
 import Header from "@/components/Header";
 import AuthInput from "./components/AuthInput";
 import PrimaryButton from "./components/PrimaryButton";
-import SocialButton from "./components/SocialButton";
 import {
   MESSAGES,
   isValidEmail,
@@ -132,13 +131,6 @@ const LoginPage = () => {
         <PrimaryButton type="submit" disabled={loading}>
           {loading ? "로그인 중..." : "로그인"}
         </PrimaryButton>
-
-        <SocialButton
-          className="mt-5"
-          // TODO: Google OAuth 연동
-        >
-          Google 계정으로 계속하기
-        </SocialButton>
 
         <p className="mt-6 flex items-center justify-center gap-[25px] border-t border-[#f8fafc] pt-4 text-[13px] leading-[19.5px]">
           <span className="text-[#64748b]">
