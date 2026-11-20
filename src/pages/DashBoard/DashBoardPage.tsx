@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import { getSavedSpecProfileMock, getSpecProfile } from "@/apis/spec";
 import { getJobPostings } from "@/apis/jobPosting";
 import { useCurrentUser } from "@/store/authStore";
-import { completedRun, useLatestDiagnosis } from "@/hooks/useLatestDiagnosis";
+import { completedDiagnosis, useLatestDiagnosis } from "@/hooks/useLatestDiagnosis";
 import type { DiagnosisResult, JobPosting } from "@/types/dashboard";
 import type { JobPostingCard, JobPostingListData } from "@/types/jobPosting";
 import { toDashboardSpec, type DashboardSpec } from "@/utils/dashboardSpec";
@@ -103,7 +103,7 @@ const DashBoardPage = () => {
   const spec = saved.status === "done" ? saved.spec : null;
   const latest = useLatestDiagnosis();
   // 최신 진단이 완료됐으면 첫 취업(annual 0) 예상 연봉, 아니면 연봉 자리에 안내 문구
-  const starting = completedRun(latest)?.result?.salaryResults.find(
+  const starting = completedDiagnosis(latest)?.salaryResults.find(
     (item) => item.annual === 0,
   );
   const diagnosis: DiagnosisResult | null = starting
