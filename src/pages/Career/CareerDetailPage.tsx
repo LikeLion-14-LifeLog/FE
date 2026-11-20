@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import DiagnosisGate from "@/components/DiagnosisGate";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import type { CareerRouteDetail } from "@/types/career";
 import CareerIcon from "./components/CareerIcon";
@@ -66,7 +67,12 @@ const CareerDetail = ({
       personal,
     ])
       .then(([data, salary, analysis]) => {
-        const detail = buildCareerRouteDetail(data, salary, analysis);
+        // 로그인했으면 분석 호출이 실패해도 스펙 비교 칸은 예시 문구로 채운다 (빈 객체 = 항목 없음)
+        const detail = buildCareerRouteDetail(
+          data,
+          salary,
+          loggedIn ? (analysis ?? {}) : undefined
+        );
         setState(detail ? { status: "done", detail } : { status: "not-found" });
       })
       .catch(() => {
@@ -163,8 +169,12 @@ const CareerDetailPage = () => {
 
   if (!parsed) return <Navigate to="/career" replace />;
 
-  // key 로 경로가 바뀔 때마다 로딩 상태 초기화
-  return <CareerDetail key={routeId} {...parsed} />;
+  // key 로 경로가 바뀔 때마다 로딩 상태 초기화. 지도와 같이 스펙 진단 전에는 잠근다
+  return (
+    <DiagnosisGate description="진단을 완료하면 이 경로의 연봉 변화와 스펙 비교를 볼 수 있어요.">
+      <CareerDetail key={routeId} {...parsed} />
+    </DiagnosisGate>
+  );
 };
 
 export default CareerDetailPage;
