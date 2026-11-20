@@ -77,6 +77,76 @@ type Edge = {
   width: number;
 };
 
+/** 노드 글자 크기 — 모든 노드가 같은 단계를 쓴다 (제목 / 내용 / 보조) */
+const TEXT = {
+  title: "text-[14px] leading-5",
+  body: "text-[12px] leading-[18px]",
+  sub: "text-[11px] leading-4",
+} as const;
+
+/** 제목 한 줄 높이 (TEXT.title 의 leading-5) — 제목이 줄바꿈되면 줄마다 노드가 이만큼 커진다 */
+const TITLE_LINE_HEIGHT = 20;
+/** 노드 좌우 패딩 + 테두리 (px-4 기준, 선택 시 테두리 1.8px) */
+const NODE_INSET = 16 * 2 + 4;
+const START_INSET = 14 * 2 + 4;
+/** 제목 옆 비율·배지와의 간격 (gap-2) */
+const TITLE_GAP = 8;
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+
+/** 화면 글꼴 기준 글자 폭 (canvas 를 못 쓰면 글자 수로 어림) */
+function textWidth(text: string, size: number) {
+  if (measureContext === undefined) {
+    measureContext =
+      typeof document === "undefined"
+        ? null
+        : document.createElement("canvas").getContext("2d");
+  }
+  if (!measureContext) return text.length * size;
+  const family = getComputedStyle(document.body).fontFamily || "sans-serif";
+  measureContext.font = `700 ${size}px ${family}`;
+  return measureContext.measureText(text).width;
+}
+
+/** 제목이 maxWidth 안에서 몇 줄이 되는지 — 단어 단위 줄바꿈(break-keep), 한 단어가 넘치면 글자 단위 */
+function titleLines(text: string, maxWidth: number) {
+  const space = textWidth(" ", 14);
+  let lines = 1;
+  let lineWidth = 0;
+  for (const word of text.trim().split(/\s+/)) {
+    const width = textWidth(word, 14);
+    if (width > maxWidth) {
+      const total = (lineWidth ? lineWidth + space : 0) + width;
+      lines += Math.ceil(total / maxWidth) - 1;
+      lineWidth = total % maxWidth;
+      continue;
+    }
+    const next = lineWidth ? lineWidth + space + width : width;
+    if (next > maxWidth) {
+      lines += 1;
+      lineWidth = width;
+    } else lineWidth = next;
+  }
+  return lines;
+}
+
+/** 제목 줄 수만큼 기본 높이를 늘린다 (sideLabel: 제목 오른쪽 비율·배지) */
+const fitHeight = (
+  base: number,
+  title: string,
+  width: number,
+  sideLabel = "",
+) => {
+  const side = sideLabel ? textWidth(sideLabel, 11) + TITLE_GAP : 0;
+  return base + (titleLines(title, width - side) - 1) * TITLE_LINE_HEIGHT;
+};
+
+const firstJobBadge = (job: FirstJobNode, index: number) =>
+  `${formatPercent(job.share)}${index === 0 ? " (최다 이동)" : ""}`;
+
+const stepBadge = (step: NextStepNode) =>
+  step.badge ?? `이동 ${formatPercent(step.share)}`;
+
 const CareerPathGraph = ({
   start,
   firstJobs,
@@ -87,17 +157,33 @@ const CareerPathGraph = ({
   onSelectStep,
 }: CareerPathGraphProps) => {
   // 1차 노드마다 [1차 노드 높이, 2차 노드 묶음 높이] 중 큰 값만큼 세로 공간을 잡고 차례로 쌓는다
-  const groups = firstJobs.map((job) => {
+  // 긴 직업명은 줄바꿈해서 다 보여 주고, 늘어난 줄만큼 노드 높이를 키운다
+  const startHeight = fitHeight(START.height, start.title, START.width - START_INSET);
+  const groups = firstJobs.map((job, index) => {
+    const jobHeight = fitHeight(
+      COL2.height,
+      job.title,
+      COL2.width - NODE_INSET,
+      firstJobBadge(job, index),
+    );
     const children = nextSteps
       .filter((step) => step.parentId === job.id)
       .map((step) => ({
         step,
-        height: step.variant === "jump" ? COL3.jumpHeight : COL3.stayHeight,
+        height:
+          step.variant === "jump"
+            ? fitHeight(COL3.jumpHeight, step.title, COL3.width - NODE_INSET, stepBadge(step))
+            : fitHeight(COL3.stayHeight, step.title, COL3.width - NODE_INSET),
       }));
     const childrenHeight =
       children.reduce((sum, { height }) => sum + height, 0) +
       COL3_GAP * Math.max(0, children.length - 1);
-    return { job, children, height: Math.max(COL2.height, childrenHeight) };
+    return {
+      job,
+      jobHeight,
+      children,
+      height: Math.max(jobHeight, childrenHeight),
+    };
   });
 
   const contentHeight =
@@ -105,17 +191,17 @@ const CareerPathGraph = ({
     GROUP_GAP * Math.max(0, groups.length - 1);
   const graphHeight = Math.max(
     MIN_GRAPH_HEIGHT,
-    TOP_PADDING + Math.max(contentHeight, START.height) + HINT_SPACE,
+    TOP_PADDING + Math.max(contentHeight, startHeight) + HINT_SPACE,
   );
   // 노드가 적으면 남는 공간 가운데에 배치
   const contentTop =
     TOP_PADDING +
-    (graphHeight - TOP_PADDING - HINT_SPACE - Math.max(contentHeight, START.height)) / 2;
+    (graphHeight - TOP_PADDING - HINT_SPACE - Math.max(contentHeight, startHeight)) / 2;
 
-  const startCenterY = contentTop + Math.max(contentHeight, START.height) / 2;
+  const startCenterY = contentTop + Math.max(contentHeight, startHeight) / 2;
   const startAnchor: [number, number] = [START.x + START.width, startCenterY];
 
-  const firstJobLayout: { job: FirstJobNode; centerY: number }[] = [];
+  const firstJobLayout: { job: FirstJobNode; centerY: number; height: number }[] = [];
   const nextStepLayout: {
     step: NextStepNode;
     parentCenterY: number;
@@ -124,9 +210,9 @@ const CareerPathGraph = ({
   }[] = [];
 
   let groupTop = contentTop;
-  for (const { job, children, height } of groups) {
+  for (const { job, jobHeight, children, height } of groups) {
     const centerY = groupTop + height / 2;
-    firstJobLayout.push({ job, centerY });
+    firstJobLayout.push({ job, centerY, height: jobHeight });
 
     const childrenHeight =
       children.reduce((sum, child) => sum + child.height, 0) +
@@ -254,24 +340,24 @@ const CareerPathGraph = ({
         className="absolute px-[14px]"
         style={{
           left: START.x,
-          top: startCenterY - START.height / 2,
+          top: startCenterY - startHeight / 2,
         }}
         width={START.width}
-        height={START.height}
+        height={startHeight}
       >
-        <span className="text-[11.4px] font-bold text-teal-600">
+        <span className={`${TEXT.sub} font-bold text-teal-600`}>
           {start.label}
         </span>
-        <span className="mt-1.5 text-[14.9px] font-bold text-slate-900">
+        <span className={`mt-1.5 ${TEXT.title} font-bold break-keep text-slate-900 [overflow-wrap:anywhere]`}>
           {start.title}
         </span>
-        <span className="mt-1 text-[11.9px] font-bold text-slate-500">
+        <span className={`mt-1 ${TEXT.body} font-bold text-slate-500`}>
           {start.description}
         </span>
       </CareerNode>
 
       {/* 02 1차 첫 취업 진입군 */}
-      {firstJobLayout.map(({ job, centerY }, i) => {
+      {firstJobLayout.map(({ job, centerY, height }, i) => {
         const active = job.id === selectedFirstJobId;
         return (
           <CareerNode
@@ -279,34 +365,33 @@ const CareerPathGraph = ({
             onClick={() => onSelectFirstJob(job.id)}
             selected={active}
             className="absolute px-4 hover:border-teal-600!"
-            style={{ left: COL2.x, top: centerY - COL2.height / 2 }}
+            style={{ left: COL2.x, top: centerY - height / 2 }}
             width={COL2.width}
-            height={COL2.height}
+            height={height}
             borderColor={active ? COLOR.brand : COLOR.line}
             borderWidth={active ? 1.8 : 1}
             bgColor={active ? COLOR.mint : "#ffffff"}
           >
-            <span className="flex items-center justify-between gap-2">
+            <span className="flex items-start justify-between gap-2">
               <span
-                className={`truncate text-[13.9px] font-bold ${active ? "text-slate-900" : "text-slate-700"}`}
+                className={`min-w-0 ${TEXT.title} font-bold break-keep [overflow-wrap:anywhere] ${active ? "text-slate-900" : "text-slate-700"}`}
                 title={job.title}
               >
                 {job.title}
               </span>
               <span
-                className={`shrink-0 text-[11.4px] font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
+                className={`shrink-0 pt-0.5 ${TEXT.sub} font-bold ${active ? "text-teal-600" : "text-slate-500"}`}
               >
-                {formatPercent(job.share)}
-                {i === 0 && " (최다 이동)"}
+                {firstJobBadge(job, i)}
               </span>
             </span>
             <span
-              className={`mt-1 text-[14px] font-bold ${active ? "text-teal-600" : "text-slate-700"}`}
+              className={`mt-1 ${TEXT.body} font-bold ${active ? "text-teal-600" : "text-slate-700"}`}
             >
               평균 연봉 {job.salary ? formatManwon(job.salary.meanTo) : EMPTY}
             </span>
             <span
-              className={`mt-0.5 text-[10.9px] ${active ? "font-bold text-slate-500" : "text-slate-400"}`}
+              className={`mt-0.5 ${TEXT.sub} ${active ? "font-bold text-slate-500" : "text-slate-400"}`}
             >
               {job.observedSegments}구간 관측{i === 0 && " (1순위 경로)"}
             </span>
@@ -335,35 +420,35 @@ const CareerPathGraph = ({
           >
             {step.variant === "jump" ? (
               <>
-                <span className="flex items-center justify-between gap-2">
+                <span className="flex items-start justify-between gap-2">
                   <span
-                    className="truncate text-[14.4px] font-bold text-slate-900"
+                    className={`min-w-0 ${TEXT.title} font-bold break-keep text-slate-900 [overflow-wrap:anywhere]`}
                     title={step.title}
                   >
                     {step.title}
                   </span>
-                  <span className="shrink-0 text-[11.4px] font-bold text-teal-700">
-                    {step.badge ?? `이동 ${formatPercent(step.share)}`}
+                  <span className={`shrink-0 pt-0.5 ${TEXT.sub} font-bold text-teal-700`}>
+                    {stepBadge(step)}
                   </span>
                 </span>
-                <span className="text-[19.8px] font-bold text-teal-600">
+                <span className={`mt-1 ${TEXT.body} font-bold text-teal-600`}>
                   {step.salary ? formatManwon(step.salary.meanTo) : `${EMPTY} 만 원`}
                 </span>
-                <span className="text-[11.9px] font-bold text-teal-700">
+                <span className={`mt-0.5 ${TEXT.sub} font-bold text-teal-700`}>
                   {step.salary ? formatRise(step.salary) : EMPTY}
                 </span>
               </>
             ) : (
               <>
                 <span
-                  className="truncate text-[12.9px] font-bold text-slate-700"
+                  className={`${TEXT.title} font-bold break-keep text-slate-700 [overflow-wrap:anywhere]`}
                   title={step.title}
                 >
                   {step.title}
                 </span>
-                <span className="mt-0.5 text-[12.9px] font-bold text-slate-700">
+                <span className={`mt-1 ${TEXT.body} font-bold text-slate-700`}>
                   {step.salary ? formatManwon(step.salary.meanTo) : `${EMPTY} 만 원`}{" "}
-                  <span className="text-[10.9px] text-slate-500">
+                  <span className={`${TEXT.sub} text-slate-500`}>
                     (이동 {formatPercent(step.share)})
                   </span>
                 </span>

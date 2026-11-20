@@ -14,7 +14,10 @@ import {
 } from "@/apis/careerPath";
 import { useCurrentUser } from "@/store/authStore";
 import { toRouteSalary } from "@/utils/careerRouteTree";
-import { buildCareerRouteDetail, parseRouteId } from "@/utils/careerRouteDetail";
+import {
+  buildCareerRouteDetail,
+  parseRouteId,
+} from "@/utils/careerRouteDetail";
 
 const SectionTitle = ({ children }: { children: string }) => (
   <h2 className="border-b border-slate-100 pb-3 text-[16px] leading-6 font-extrabold text-slate-900">
@@ -27,7 +30,13 @@ type DetailState =
   | { status: "not-found" }
   | { status: "done"; detail: CareerRouteDetail };
 
-const CareerDetail = ({ source, target }: { source: string; target: string }) => {
+const CareerDetail = ({
+  source,
+  target,
+}: {
+  source: string;
+  target: string;
+}) => {
   const [state, setState] = useState<DetailState>({ status: "loading" });
   // 지도에서 넘어왔으면 그때의 선택 상태(쿼리)로 돌아간다
   const back = (useLocation().state as { back?: string } | null)?.back;
@@ -40,7 +49,7 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
     // 로그인했으면 내 전공 계열 기준 상세 분석(연봉·스펙 비교·추천). 실패해도 나머지는 보여 준다
     const personal = loggedIn
       ? getPersonalizedRouteAnalysis(source, target, { signal }).catch(
-          () => undefined,
+          () => undefined
         )
       : Promise.resolve(undefined);
     // 내 전공 계열 연봉이 없으면(비로그인·표본 부족·실패) 전체 응답자 연봉 분석을 쓴다
@@ -49,9 +58,13 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
         (analysis && toRouteSalary(analysis)) ??
         getCareerRouteSalaryAnalysis(source, target, { signal })
           .then(toRouteSalary)
-          .catch(() => undefined),
+          .catch(() => undefined)
     );
-    Promise.all([getCareerRouteDetail(source, target, { signal }), salary, personal])
+    Promise.all([
+      getCareerRouteDetail(source, target, { signal }),
+      salary,
+      personal,
+    ])
       .then(([data, salary, analysis]) => {
         const detail = buildCareerRouteDetail(data, salary, analysis);
         setState(detail ? { status: "done", detail } : { status: "not-found" });
@@ -68,7 +81,6 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
   const specEmptyText = loggedIn
     ? "비교할 수 있는 표본이 부족해 표시할 항목이 없어요."
     : "로그인하면 내 스펙과 비교한 결과를 볼 수 있어요.";
-
 
   return (
     <div>
@@ -138,10 +150,6 @@ const CareerDetail = ({ source, target }: { source: string; target: string }) =>
           </div>
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-[12px] leading-[18px]">
             <span className="text-slate-400">{detail.source}</span>
-            <span className="flex items-center gap-1 font-bold text-slate-700">
-              통계 기준 확인
-              <CareerIcon name="averageArrow" />
-            </span>
           </div>
         </section>
       </div>
