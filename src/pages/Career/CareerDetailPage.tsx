@@ -169,7 +169,6 @@ const CareerDetailPage = () => {
 
   if (!parsed) return <Navigate to="/career" replace />;
 
-  // key 로 경로가 바뀔 때마다 로딩 상태 초기화. 지도와 같이 스펙 진단 전에는 잠근다
   return (
     <DiagnosisGate description="진단을 완료하면 이 경로의 연봉 변화와 스펙 비교를 볼 수 있어요.">
       <CareerDetail key={routeId} {...parsed} />
