@@ -40,7 +40,7 @@ const COLUMN_TITLE =
 const DEFAULT_ROOT_CODE = "1332";
 
 const DEFAULT_NOTICE =
-  "이동 비율은 실제 이직 확률이 아니라 관측된 직업코드 변경 구간의 비율입니다.";
+  "이동 비율은 실제 이직 확률이 아니라 관측된 직업 변경 구간의 비율입니다.";
 
 const ALL_MAJORS = "ALL";
 type MajorFilter = MajorField | typeof ALL_MAJORS;
@@ -436,7 +436,7 @@ const CareerPage = () => {
             options={sourceOptions.map(({ code, name, routeCount }) => ({
               value: code,
               label: name,
-              description: `직업코드 ${code} · 이동 경로 ${routeCount}개`,
+              description: `이동 경로 ${routeCount}개`,
             }))}
             value={activeRoot}
             onChange={handleSelectRoot}

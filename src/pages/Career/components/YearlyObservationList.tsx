@@ -19,7 +19,7 @@ const YearlyObservationList = ({ columns }: YearlyObservationListProps) => {
   return (
     <section className="mt-5">
       <p className="pb-2 text-[12px] leading-[18px] font-bold text-slate-500">
-        연도별 관측된 직업코드 변화
+        연도별 관측된 직업 이동
       </p>
       <div className="grid grid-cols-2 gap-4">
         {columns.map((column) => (
