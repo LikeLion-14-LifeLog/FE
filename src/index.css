@@ -1,1 +1,66 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("./assets/fonts/PretendardVariable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html {
+  background-color: #fff;
+  scrollbar-gutter: stable;
+  /* 아래 zoom 배율 — 100vh 처럼 뷰포트 기준 높이를 보정할 때 나눠 쓴다 */
+  --page-zoom: 1;
+}
+
+/*
+ * 1920 기준 시안을 노트북 폭(1024~1535px)에서 한 단계 축소한다.
+ * 연속적인 innerWidth 기반 배율과 달리 고정 구간이라,
+ * 각 구간 안에서는 브라우저 확대/축소가 그대로 적용된다.
+ */
+@media (min-width: 1024px) and (max-width: 1535.98px) {
+  html {
+    zoom: 0.8;
+    --page-zoom: 0.8;
+  }
+}
+
+@theme {
+  --font-sans: "Pretendard", sans-serif;
+
+  /* Brand */
+  --color-brand: #27b8a2;
+  --color-brand-strong: #148f7e;
+  --color-brand-soft: #eaf8f5;
+
+  /* Text */
+  --color-text-primary: #17211f;
+  --color-text-secondary: #65726e;
+  --color-text-muted: #899591;
+  --color-text-disabled: #98a39f;
+
+  /* Background */
+  --color-bg-page: #ffffff;
+  --color-bg-section: #f2f5f4;
+  --color-bg-subtle: #f6f8f7;
+  --color-bg-muted: #f9fbfa;
+
+  /* Border */
+  --color-border: #dce4e1;
+  --color-border-strong: #aeb9b5;
+
+  /* Status */
+  --color-error: #c83d3d;
+  --color-success: #148f7e;
+}
+/* 커리어 경로 지도 — 선택 경로 연결선 그리기 */
+@keyframes career-draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
