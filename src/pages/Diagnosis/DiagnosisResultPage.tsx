@@ -49,7 +49,7 @@ export default function DiagnosisResultPage() {
   useEffect(() => {
     if (!email || !Number.isSafeInteger(runId) || runId <= 0) return;
     let active = true;
-    getDiagnosisView(email, runId)
+    getDiagnosisView(runId)
       .then((result) => {
         if (active) setRequest({ key: requestKey, result, error: false });
       })
@@ -143,9 +143,6 @@ export default function DiagnosisResultPage() {
           <p className="mt-2 text-[11px] text-text-secondary">현재 스펙 유지 시 예상되는 연봉 변화</p>
           <div className="mt-4"><SalaryChart data={chartData} /></div>
           <p className="mt-1 text-[10px] leading-relaxed text-text-muted">{salaryNotice}</p>
-          <p className="mt-1 text-[10px] text-text-muted">
-            현재 연봉·비교 집단·보완점은 API 명세의 예시값입니다. 실제 개인별 분석 결과가 아닙니다.
-          </p>
         </section>
 
         <section aria-labelledby="diagnosis-detail-title" className="flex min-w-0 flex-col">

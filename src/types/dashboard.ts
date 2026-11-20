@@ -2,8 +2,8 @@
 export type DiagnosisResult = {
   /** 예상 초봉 (만 원) */
   expectedSalary: number;
-  /** 비교 집단 내 상위 % */
-  topPercent: number;
+  /** 비교 집단 내 상위 % (표본 부족 등으로 없으면 null) */
+  topPercent: number | null;
   /** 산출에 반영된 핵심 스펙 */
   specs: string[];
 };
@@ -16,9 +16,10 @@ export type JobPosting = {
   location: string;
   /** 마감까지 남은 일수, null 이면 상시 채용 */
   dDay: number | null;
-  /** 예상 연봉 범위 (만 원) */
-  salaryMin: number;
-  salaryMax: number;
+  /** 예상 연봉 범위 (만 원) — 서버가 아직 주지 않으면 null */
+  salaryMin: number | null;
+  salaryMax: number | null;
+  /** 카드 하단 태그 (학력 조건·업종 등) */
   skills: string[];
 };
 

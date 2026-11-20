@@ -1,4 +1,3 @@
-import type { SpecProfileDraft } from "@/apis/spec";
 import type { SpecReadData, ApiResponse } from "@/types/spec/api";
 
 export type DiagnosisStatus =
@@ -74,6 +73,3 @@ export type AnalysisRunResult = {
 export type AnalysisRunResponse = ApiResponse<AnalysisRunData>;
 export type AnalysisResultResponse = ApiResponse<AnalysisRunResult>;
 
-/** Mock 전용: 서버 PK를 만들어내지 않고 UI Draft 스냅샷 유지. */
-export type MockDiagnosisResult = Omit<DiagnosisResult, "appliedSpecs"> & { appliedSpecs: SpecProfileDraft };
-export type MockAnalysisRunResult = Omit<AnalysisRunResult, "result" | "specProfileId"> & { result: MockDiagnosisResult | null };
