@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import DiagnosisGate from "@/components/DiagnosisGate";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCareerRouteDetail,
@@ -404,23 +405,6 @@ const CareerPage = () => {
         `직업명 ${load.data.jobNameReferenceYear}년 분류 기준`,
         `전체 ${load.data.allObservedSegments.toLocaleString("ko-KR")}구간`,
       ];
-  // 내 전공 계열 경로를 못 쓰고 전체 경로로 보여줄 때 그 이유
-  const fallbackReason =
-    usePersonal
-      ? null
-      : !token
-        ? "로그인하면 내 전공 계열 기준 경로와 연봉을 볼 수 있어요."
-        : personal && "error" in personal
-          ? `내 전공 계열 경로를 불러오지 못해 전체 경로를 보여줍니다. (${personal.error})`
-          : personal && "data" in personal
-            ? personal.data.status === "SPEC_REQUIRED"
-              ? "스펙에 학력(전공 계열)을 등록하면 내 전공 계열 기준 경로와 연봉을 볼 수 있어요. 지금은 전체 경로를 보여줍니다."
-              : `내 전공 계열 경로가 없어 전체 경로를 보여줍니다. (상태: ${personal.data.status})`
-            : null;
-  const salaryError =
-    !usePersonal && token && salaryResult?.token === token && "error" in salaryResult
-      ? `경로별 연봉 통계를 불러오지 못했습니다. (${salaryResult.error})`
-      : null;
   const routeNotice = usePersonal
     ? (personalData.notice ?? DEFAULT_NOTICE)
     : (load.data.notice ?? DEFAULT_NOTICE);
@@ -461,17 +445,6 @@ const CareerPage = () => {
         />
         <div className="-ml-6 flex-1 border-b border-slate-200" />
       </div>
-
-      {(fallbackReason || salaryError) && (
-        <div
-          role="status"
-          className="rounded-lg bg-amber-50 px-4 py-2.5 text-[12px] leading-[18px] font-bold text-amber-700"
-        >
-          {[fallbackReason, salaryError].filter(Boolean).map((text) => (
-            <p key={text}>{text}</p>
-          ))}
-        </div>
-      )}
 
       <div className="flex items-start gap-9 overflow-x-auto pt-[22px]">
         <section className="shrink-0 border-r border-slate-200 pr-9">
@@ -515,4 +488,11 @@ const CareerPage = () => {
   );
 };
 
-export default CareerPage;
+/** 연봉 시뮬레이터처럼 스펙 진단을 마쳐야 경로 지도를 보여 준다 */
+const CareerPageWithGate = () => (
+  <DiagnosisGate description="진단을 완료하면 내 전공·스펙 기준 커리어 이동 경로를 볼 수 있어요.">
+    <CareerPage />
+  </DiagnosisGate>
+);
+
+export default CareerPageWithGate;
