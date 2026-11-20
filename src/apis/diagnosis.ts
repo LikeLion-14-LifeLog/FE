@@ -1,188 +1,211 @@
-import { apiClient, toApiError } from "@/apis/client";
-import { getAccessToken } from "@/store/authStore";
-import type { ApiResponse } from "@/types/spec/api";
 import type {
   AnalysisEvent,
   AnalysisEventName,
   AnalysisRunData,
   AnalysisRunResult,
 } from "@/types/diagnosis";
+import type { ApiResponse } from "@/types/spec/api";
+import { getAccessToken } from "@/store/authStore";
 import { fromApiDiagnosis, type DiagnosisView } from "@/utils/diagnosisMapper";
-
-const RUN_NOT_FOUND = "RUN_NOT_FOUND";
-export const ANALYSIS_ALREADY_RUNNING = "ANALYSIS_ALREADY_RUNNING";
-
-const unwrap = <T>(body: ApiResponse<T>, fallback: string): T => {
-  if (!body.success || body.data == null) throw new Error(body.message ?? fallback);
-  return body.data;
-};
-
-const isNotFound = (error: unknown) => {
-  const { status, code } = toApiError(error);
-  return status === 404 || code === RUN_NOT_FOUND;
-};
-
-/** POST /api/spec-profile/analyzation/run — 저장된 CURRENT 스펙으로 연봉 분석 요청 (진행 중이면 409 ANALYSIS_ALREADY_RUNNING) */
-export async function startDiagnosis(): Promise<AnalysisRunData> {
-  const { data } = await apiClient.post<ApiResponse<AnalysisRunData>>(
-    "/api/spec-profile/analyzation/run",
-  );
-  return unwrap(data, "연봉 분석을 요청하지 못했습니다.");
-}
-
-/** GET /api/spec-profile/runs/latest — 최신 QUEUED·IN_PROGRESS·COMPLETED 실행 ID (없으면 null) */
-export async function getLatestDiagnosisRunId(
-  options: { signal?: AbortSignal } = {},
-): Promise<number | null> {
-  try {
-    const { data } = await apiClient.get<ApiResponse<{ runId: number }>>(
-      "/api/spec-profile/runs/latest",
-      { signal: options.signal },
-    );
-    return unwrap(data, "최신 분석을 불러오지 못했습니다.").runId;
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    throw error;
-  }
-}
-
-/** GET /api/spec-profile/analyzation/runs/{runId} — 실행 상태와 (완료 시) 결과. 없거나 타인 실행이면 null */
-export async function getDiagnosisRun(
-  runId: number,
-  options: { signal?: AbortSignal } = {},
-): Promise<AnalysisRunResult | null> {
-  try {
-    const { data } = await apiClient.get<ApiResponse<AnalysisRunResult>>(
-      `/api/spec-profile/analyzation/runs/${runId}`,
-      { signal: options.signal },
-    );
-    return unwrap(data, "분석 결과를 불러오지 못했습니다.");
-  } catch (error) {
-    if (isNotFound(error)) return null;
-    throw error;
-  }
-}
-
-/** PATCH /api/spec-profile/analyzation/runs/{runId}/stop — 대기·진행 중 분석 중단 (완료·실패면 409 RUN_NOT_STOPPABLE) */
-export async function stopDiagnosis(runId: number): Promise<void> {
-  const { data } = await apiClient.patch<ApiResponse<unknown>>(
-    `/api/spec-profile/analyzation/runs/${runId}/stop`,
-  );
-  if (!data.success) throw new Error(data.message ?? "분석을 중단하지 못했습니다.");
-}
 
 export type DiagnosisViewState =
   | { status: "completed"; data: DiagnosisView }
   | { status: "pending" | "canceled" | "failed" | "not-found"; data: null };
 
-/** 실행 상태·결과 → 결과 화면 상태 */
-export function toDiagnosisViewState(
-  run: AnalysisRunResult | null,
-): DiagnosisViewState {
-  if (!run) return { status: "not-found", data: null };
-  if (run.status === "COMPLETED")
-    return run.result
-      ? { status: "completed", data: fromApiDiagnosis(run.result) }
-      : { status: "failed", data: null };
-  if (run.status === "FAILED") return { status: "failed", data: null };
-  if (run.status === "CANCELED") return { status: "canceled", data: null };
-  return { status: "pending", data: null };
+/** 기존 결과 페이지 호출부 호환. email 인자는 화면 연동 시 제거한다. */
+export async function getDiagnosisView(
+  _email: string,
+  runId: number
+): Promise<DiagnosisViewState> {
+  const token = getAccessToken();
+  if (!token) throw new Error("로그인이 필요합니다.");
+
+  const response = await fetch(
+    apiUrl(`/api/spec-profile/analyzation/runs/${runId}`),
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const body = (await response.json().catch(() => null)) as ApiResponse<AnalysisRunResult> | null;
+
+  if (body?.code === "RUN_NOT_FOUND" && response.status === 404) {
+    return { status: "not-found", data: null };
+  }
+  if (!response.ok || !body?.success) {
+    throw new Error(body?.message || `결과 조회 실패 (HTTP ${response.status})`);
+  }
+  if (!body.data || body.data.runId !== runId) {
+    throw new Error("분석 결과 응답이 올바르지 않습니다.");
+  }
+
+  const { status, result } = body.data;
+  if (status === "COMPLETED") {
+    if (!result) throw new Error("완료된 분석 결과가 없습니다.");
+    return { status: "completed", data: fromApiDiagnosis(result) };
+  }
+  if (status === "FAILED") return { status: "failed", data: null };
+  if (status === "CANCELED") return { status: "canceled", data: null };
+  if (status === "QUEUED" || status === "IN_PROGRESS") {
+    return { status: "pending", data: null };
+  }
+  throw new Error("알 수 없는 분석 상태입니다.");
 }
 
-/** 결과 화면용 — 전송 오류는 throw */
-export async function getDiagnosisView(runId: number): Promise<DiagnosisViewState> {
-  return toDiagnosisViewState(await getDiagnosisRun(runId));
+const baseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "");
+
+function apiUrl(path: string): string {
+  if (!baseUrl) throw new Error("API 기본 주소가 설정되지 않았습니다.");
+  return `${baseUrl}${path}`;
 }
 
-/** 최신 실행 (대시보드·스펙 진입·연봉 시뮬레이터 잠금용). 실행이 없으면 null */
-export async function getLatestDiagnosis(
-  options: { signal?: AbortSignal } = {},
-): Promise<AnalysisRunResult | null> {
-  const runId = await getLatestDiagnosisRunId(options);
-  return runId === null ? null : getDiagnosisRun(runId, options);
+async function checkResponse<T>(response: Response): Promise<T> {
+  const body = (await response
+    .json()
+    .catch(() => null)) as ApiResponse<T> | null;
+  if (!response.ok || !body?.success) {
+    if (body?.code === "ANALYSIS_ALREADY_RUNNING")
+      throw new Error("이미 진행 중인 분석이 있습니다.");
+    if (body?.code === "RUN_NOT_STOPPABLE")
+      throw new Error("이미 완료되거나 실패한 분석은 취소할 수 없습니다.");
+    throw new Error(body?.message || `요청 실패 (HTTP ${response.status})`);
+  }
+  return body.data;
 }
 
-const TERMINAL_EVENTS: AnalysisEventName[] = ["completed", "failed", "canceled"];
+/** 최근 대기·진행·완료된 분석의 실행 ID를 서버에서 조회한다. */
+export async function getLatestAnalysisRunId(): Promise<number> {
+  const token = getAccessToken();
+  if (!token) throw new Error("로그인이 필요합니다.");
 
-/**
- * GET /api/spec-profile/analyzation/runs/{runId}/events — 진행 상태 SSE 구독.
- * EventSource 는 Authorization 헤더를 보낼 수 없어 fetch 스트림으로 읽는다.
- * 종료 이벤트(completed·failed·canceled) 없이 연결이 끊기면 Last-Event-ID 로 다시 붙는다.
- * 반환 함수를 부르면 구독을 끊는다 (분석 취소 아님).
- */
-export function subscribeDiagnosisEvents(
+  const response = await fetch(apiUrl("/api/spec-profile/runs/latest"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await checkResponse<{ runId: number }>(response);
+  if (!Number.isSafeInteger(data?.runId) || data.runId <= 0) {
+    throw new Error("최근 분석 실행 정보가 올바르지 않습니다.");
+  }
+  return data.runId;
+}
+
+export async function startAnalysis(token: string): Promise<AnalysisRunData> {
+  const response = await fetch(apiUrl("/api/spec-profile/analyzation/run"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return checkResponse<AnalysisRunData>(response);
+}
+
+export async function stopAnalysis(
   runId: number,
-  onEvent: (name: AnalysisEventName, event: AnalysisEvent) => void,
-  onError: (error: unknown) => void,
-): () => void {
-  const controller = new AbortController();
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
-  let lastEventId: string | null = null;
-  let failures = 0;
+  token: string
+): Promise<void> {
+  const response = await fetch(
+    apiUrl(`/api/spec-profile/analyzation/runs/${runId}/stop`),
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  await checkResponse(response);
+}
 
-  const connect = async (): Promise<boolean> => {
-    const token = getAccessToken();
-    const response = await fetch(
-      `${baseUrl}/api/spec-profile/analyzation/runs/${runId}/events`,
-      {
-        headers: {
-          Accept: "text/event-stream",
-          ...(token && { Authorization: `Bearer ${token}` }),
-          ...(lastEventId && { "Last-Event-ID": lastEventId }),
-        },
-        signal: controller.signal,
+/** JWT와 Last-Event-ID 헤더를 사용하기 위해 fetch로 SSE를 구독한다. */
+export async function subscribeAnalysis(
+  runId: number,
+  token: string,
+  lastEventId: string,
+  onEvent: (
+    name: AnalysisEventName,
+    event: AnalysisEvent,
+    eventId: string
+  ) => void,
+  signal: AbortSignal
+): Promise<void> {
+  const response = await fetch(
+    apiUrl(`/api/spec-profile/analyzation/runs/${runId}/events`),
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "text/event-stream",
+        ...(lastEventId ? { "Last-Event-ID": lastEventId } : {}),
       },
-    );
-    if (!response.ok || !response.body)
-      throw new Error(`진행 상태 구독 실패 (HTTP ${response.status})`);
+      signal,
+    }
+  );
+  if (!response.ok) {
+    await checkResponse(response);
+    throw new Error(`분석 진행 상태 연결 실패 (HTTP ${response.status})`);
+  }
+  if (
+    !response.body ||
+    !response.headers.get("content-type")?.includes("text/event-stream")
+  ) {
+    throw new Error("서버가 SSE 형식으로 응답하지 않았습니다.");
+  }
 
-    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-    let buffer = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) return false;
-      failures = 0;
-      buffer += value.replace(/\r\n?/g, "\n");
-      let end: number;
-      while ((end = buffer.indexOf("\n\n")) !== -1) {
-        const block = buffer.slice(0, end);
-        buffer = buffer.slice(end + 2);
-        let name = "message";
-        let id: string | null = null;
-        const data: string[] = [];
-        for (const line of block.split("\n")) {
-          if (!line || line.startsWith(":")) continue; // heartbeat 주석
-          const colon = line.indexOf(":");
-          const field = colon === -1 ? line : line.slice(0, colon);
-          const text = colon === -1 ? "" : line.slice(colon + 1).replace(/^ /, "");
-          if (field === "event") name = text;
-          else if (field === "id") id = text;
-          else if (field === "data") data.push(text);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let eventName = "";
+  let eventId = "";
+  let data: string[] = [];
+
+  const dispatch = () => {
+    if (
+      data.length &&
+      ["snapshot", "progress", "completed", "failed", "canceled"].includes(
+        eventName
+      )
+    ) {
+      try {
+        const event = JSON.parse(data.join("\n")) as AnalysisEvent;
+        if (event.runId === runId && Number.isSafeInteger(event.eventLogId)) {
+          onEvent(
+            eventName as AnalysisEventName,
+            event,
+            eventId || String(event.eventLogId)
+          );
         }
-        if (!data.length) continue;
-        if (id) lastEventId = id;
-        const eventName = name as AnalysisEventName;
-        onEvent(eventName, JSON.parse(data.join("\n")) as AnalysisEvent);
-        if (TERMINAL_EVENTS.includes(eventName)) return true;
+      } catch {
+        // 잘못된 이벤트 한 건으로 SSE 연결을 끊지 않는다.
       }
     }
+    eventName = "";
+    eventId = "";
+    data = [];
   };
 
-  void (async () => {
-    while (!controller.signal.aborted) {
-      try {
-        if (await connect()) break;
-      } catch (error) {
-        if (controller.signal.aborted) break;
-        if (++failures >= 3) {
-          onError(error);
-          break;
-        }
-      }
-      // 끊겼으면 잠시 뒤 재접속
-      await new Promise((resolve) => setTimeout(resolve, 1_000 * (failures + 1)));
+  const processLine = (line: string) => {
+    if (!line) {
+      dispatch();
+      return;
     }
-  })();
+    if (line.startsWith(":")) return;
 
-  return () => controller.abort();
+    const separator = line.indexOf(":");
+    const field = separator < 0 ? line : line.slice(0, separator);
+    const rawValue = separator < 0 ? "" : line.slice(separator + 1);
+    const value = rawValue.startsWith(" ") ? rawValue.slice(1) : rawValue;
+
+    if (field === "event") eventName = value;
+    if (field === "id" && !value.includes("\0")) eventId = value;
+    if (field === "data") data.push(value);
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r\n|\n|\r(?!$)/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) processLine(line);
+    }
+
+    buffer += decoder.decode();
+    if (buffer) processLine(buffer.replace(/\r$/, ""));
+    dispatch();
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
 }

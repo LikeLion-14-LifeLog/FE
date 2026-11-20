@@ -1,4 +1,5 @@
 import { specFormOptions } from "@/constants/specFormOptions";
+import { apiClient } from "@/apis/client";
 import type { BasicInfo, SpecFormOptions } from "@/types/spec/profile";
 import type { Education } from "@/types/spec/education";
 import type { Certificate, LanguageScore } from "@/types/spec/qualification";
@@ -52,109 +53,6 @@ export async function getSpecFormOptions(
   };
 }
 
-/** 스펙 화면 입력값 → 서버 임시 저장 요청 DTO (선택하지 않은 항목이 있으면 이유와 함께 예외) */
-export function toSpecSaveRequest(profile: SpecProfileDraft): SpecSaveRequest {
-  const { basicInfo } = profile;
-  if (basicInfo.jobId === null)
-    throw new Error("희망 직무를 검색해 선택해 주세요.");
-  const orNull = (value: string) => (value.trim() ? value.trim() : null);
-  const numOrNull = (value: string) =>
-    value.trim() === "" ? null : Number(value);
-
-  return {
-    birthYear: Number(basicInfo.birthYear),
-    residenceRegion: basicInfo.residenceRegion,
-    jobId: basicInfo.jobId,
-    academicAbilities: profile.educations.map((item) => {
-      if (item.majorId === null && item.type !== "HIGH_SCHOOL")
-        throw new Error("학력의 전공을 검색해 선택해 주세요.");
-      return {
-        ...(item.academicAbilityId !== null && {
-          academicAbilityId: item.academicAbilityId,
-        }),
-        type: item.type,
-        status: item.status,
-        location: item.location,
-        universityGrade: numOrNull(item.universityGrade),
-        universityStandardGrade: numOrNull(item.universityStandardGrade),
-        graduatedYearMonth: orNull(item.graduatedYearMonth) as string,
-        majorAffiliation: orNull(item.majorAffiliation) as string,
-        majorId: item.majorId as number,
-      };
-    }),
-    certificates: profile.certificates.map((item) => {
-      if (item.certificateId === null)
-        throw new Error("자격증을 검색해 선택해 주세요.");
-      return {
-        ...(item.specProfileCertificateId !== null && {
-          specProfileCertificateId: item.specProfileCertificateId,
-        }),
-        certificateId: item.certificateId,
-        acquiredYearMonth: orNull(item.acquiredYearMonth) as string,
-      };
-    }),
-    languageExamScores: profile.languageScores.map((item) => {
-      if (item.languageExamId === null)
-        throw new Error("어학 시험을 검색해 선택해 주세요.");
-      return {
-        ...(item.languageExamScoreId !== null && {
-          languageExamScoreId: item.languageExamScoreId,
-        }),
-        languageExamId: item.languageExamId,
-        scoreNumeric: numOrNull(item.scoreNumeric),
-        scoreGrade: orNull(item.scoreGrade),
-        acquiredYearMonth: orNull(item.acquiredYearMonth) as string,
-        expiresYearMonth: orNull(item.expiresYearMonth),
-      };
-    }),
-    experiences: profile.experiences.map((item) => ({
-      ...(item.experienceId !== null && { experienceId: item.experienceId }),
-      type: item.type,
-      title: item.title.trim(),
-      startedYearMonth: item.startedYearMonth,
-      endedYearMonth: orNull(item.endedYearMonth),
-      description: orNull(item.description),
-      awarded: item.awarded,
-      organizerName: item.awarded ? orNull(item.organizerName) : null,
-      awardGrade: item.awarded ? orNull(item.awardGrade) : null,
-    })),
-  };
-}
-
-/** PUT /api/spec-profile/temporary — 본인 CURRENT 스펙 저장 (서버 메시지를 그대로 예외로) */
-export async function saveSpecProfile(
-  profile: SpecProfileDraft,
-  accessToken: string
-): Promise<void> {
-  const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
-  const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
-  if (!baseUrl) throw new Error("API 기본 주소가 설정되지 않았습니다.");
-
-  const response = await fetch(
-    `${baseUrl}/api/spec-profile/temporary`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(toSpecSaveRequest(profile)),
-    }
-  );
-  const body = (await response.json().catch(() => null)) as {
-    success?: boolean;
-    code?: string;
-    message?: string;
-  } | null;
-  if (!response.ok || body?.success === false) {
-    // 분석 진행 중(409 ANALYSIS_ALREADY_RUNNING) 등을 화면에서 구분할 수 있게 서버 코드를 함께 넘긴다
-    throw Object.assign(
-      new Error(body?.message ?? `스펙 저장 실패 (HTTP ${response.status})`),
-      { code: body?.code }
-    );
-  }
-}
-
 export async function saveSpecProfileMock(
   profile: SpecProfileDraft,
   email: string
@@ -197,7 +95,7 @@ export function getSavedSpecProfileMock(
 
 export async function getSpecProfile(
   accessToken: string
-): Promise<SpecProfileDraft | null> {
+): Promise<SpecProfileDraft> {
   const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
   const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
 
@@ -214,9 +112,6 @@ export async function getSpecProfile(
       Authorization: `Bearer ${accessToken}`,
     },
   });
-
-  // 아직 등록한 스펙(CURRENT)이 없으면 빈 화면에서 새로 등록
-  if (response.status === 404) return null;
 
   if (!response.ok) {
     throw new Error(`스펙 조회 실패 (HTTP ${response.status})`);
@@ -301,4 +196,129 @@ export async function getSpecProfile(
       awardGrade: item.awardGrade ?? "",
     })),
   };
+}
+
+function requireId(value: number | null, label: string): number {
+  if (value === null || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${label} 항목을 검색 목록에서 다시 선택해 주세요.`);
+  }
+
+  return value;
+}
+
+function optionalId(value: number | null): number | undefined {
+  if (value === null) return undefined;
+
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error("저장된 항목의 식별자가 올바르지 않습니다.");
+  }
+
+  return value;
+}
+
+function toSpecSaveRequest(profile: SpecProfileDraft): SpecSaveRequest {
+  const { basicInfo, educations, certificates, languageScores, experiences } =
+    profile;
+
+  return {
+    birthYear: Number(basicInfo.birthYear),
+    residenceRegion: basicInfo.residenceRegion,
+    jobId: requireId(basicInfo.jobId, "희망 직무"),
+    academicAbilities: educations.map((item) => ({
+      academicAbilityId: optionalId(item.academicAbilityId),
+      type: item.type,
+      status: item.status,
+      location: item.location,
+      universityGrade:
+        item.universityGrade.trim() === ""
+          ? null
+          : Number(item.universityGrade),
+      universityStandardGrade:
+        item.universityStandardGrade.trim() === ""
+          ? null
+          : Number(item.universityStandardGrade),
+      graduatedYearMonth: item.graduatedYearMonth,
+      majorAffiliation: item.majorAffiliation,
+      majorId: requireId(item.majorId, "전공"),
+    })),
+    certificates: certificates.map((item) => ({
+      specProfileCertificateId: optionalId(item.specProfileCertificateId),
+      certificateId: requireId(item.certificateId, "자격증"),
+      acquiredYearMonth: item.acquiredYearMonth,
+    })),
+    languageExamScores: languageScores.map((item) => ({
+      languageExamScoreId: optionalId(item.languageExamScoreId),
+      languageExamId: requireId(item.languageExamId, "어학시험"),
+      scoreNumeric:
+        item.scoreNumeric.trim() === "" ? null : Number(item.scoreNumeric),
+      scoreGrade: item.scoreGrade.trim() || null,
+      acquiredYearMonth: item.acquiredYearMonth,
+      expiresYearMonth: item.expiresYearMonth || null,
+    })),
+    experiences: experiences.map((item) => ({
+      experienceId: optionalId(item.experienceId),
+      type: item.type,
+      title: item.title.trim(),
+      startedYearMonth: item.startedYearMonth,
+      endedYearMonth: item.endedYearMonth || null,
+      description: item.description.trim() || null,
+      awarded: item.awarded,
+      organizerName: item.awarded ? item.organizerName.trim() : null,
+      awardGrade: item.awarded ? item.awardGrade.trim() : null,
+    })),
+  };
+}
+
+export async function saveSpecProfile(
+  profile: SpecProfileDraft,
+  accessToken: string
+): Promise<void> {
+  const apiBaseUrl: string | undefined = import.meta.env.VITE_API_BASE_URL;
+  const baseUrl = apiBaseUrl?.trim().replace(/\/+$/, "");
+
+  if (!baseUrl) {
+    throw new Error("API 기본 주소가 설정되지 않았습니다.");
+  }
+
+  if (!accessToken.trim()) {
+    throw new Error("스펙 저장에 필요한 인증 토큰이 없습니다.");
+  }
+
+  const request = toSpecSaveRequest(profile);
+
+  const response = await fetch(`${baseUrl}/api/spec-profile/temporary`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`스펙 저장 실패 (HTTP ${response.status})`);
+  }
+
+  const body: ApiResponse<null> = await response.json();
+
+  if (body.success !== true) {
+    throw new Error(body.message || "스펙 저장에 실패했습니다.");
+  }
+}
+
+/** 현재 회원의 CURRENT 스펙 ID를 시뮬레이션 요청에 사용한다. */
+export async function getCurrentSpecProfileId(): Promise<number> {
+  const { data: response } = await apiClient.get<ApiResponse<SpecReadData>>(
+    "/api/spec-profile",
+  );
+  const profile = response.data;
+  if (
+    !response.success ||
+    profile?.type !== "CURRENT" ||
+    !Number.isSafeInteger(profile.specProfileId) ||
+    profile.specProfileId <= 0
+  ) {
+    throw new Error("현재 스펙 정보를 확인할 수 없습니다.");
+  }
+  return profile.specProfileId;
 }

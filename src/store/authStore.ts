@@ -53,20 +53,58 @@ const read = (getStorage: StorageSelector): CurrentUser | null =>
 const remove = (getStorage: StorageSelector) =>
   withStorage(getStorage, (storage) => storage.removeItem(STORAGE_KEY), undefined);
 
-let currentUser: CurrentUser | null = read(getLocal) ?? read(getSession);
+/** 현재 세션이 어디에 저장돼 있는지. local 만 다른 탭과 공유된다. */
+type SessionSource = "local" | "session" | "memory";
+
+const initialLocal = read(getLocal);
+let currentUser: CurrentUser | null = initialLocal ?? read(getSession);
+let currentSource: SessionSource | null = initialLocal
+  ? "local"
+  : currentUser
+    ? "session"
+    : null;
 
 const emit = () => listeners.forEach((listener) => listener());
 
+const isSameUser = (a: CurrentUser | null, b: CurrentUser | null) =>
+  a?.accessToken === b?.accessToken && a?.email === b?.email;
+
+/**
+ * 다른 탭에서 "로그인 상태 유지" 세션(localStorage)이 바뀌면 따라간다.
+ * 이 탭에만 있는 sessionStorage/메모리 세션은 건드리지 않는다.
+ */
+const syncFromOtherTab = (event: StorageEvent) => {
+  if (event.key !== null && event.key !== STORAGE_KEY) return;
+  if (!withStorage(getLocal, (storage) => event.storageArea === storage, false))
+    return;
+  if (currentSource !== null && currentSource !== "local") return;
+
+  const next = read(getLocal);
+  if (isSameUser(currentUser, next)) return;
+  currentUser = next;
+  currentSource = next ? "local" : null;
+  emit();
+};
+
+if (typeof window !== "undefined")
+  window.addEventListener("storage", syncFromOtherTab);
+
 export const login = (user: CurrentUser, keepLoggedIn = false) => {
-  // 저장소를 쓸 수 없는 환경이면 메모리에만 유지
-  remove(getLocal);
-  remove(getSession);
-  withStorage(
-    keepLoggedIn ? getLocal : getSession,
-    (storage) => storage.setItem(STORAGE_KEY, JSON.stringify(user)),
-    undefined,
+  // 쓸 저장소는 덮어쓰고 다른 쪽만 지운다 (다른 탭에 로그아웃→로그인 이벤트가 연달아 가지 않게)
+  const target = keepLoggedIn ? getLocal : getSession;
+  remove(keepLoggedIn ? getSession : getLocal);
+  const saved = withStorage(
+    target,
+    (storage) => {
+      storage.setItem(STORAGE_KEY, JSON.stringify(user));
+      return true;
+    },
+    false,
   );
+  // 저장소를 쓸 수 없는 환경이면 남은 예전 세션을 지우고 메모리에만 유지
+  if (!saved) remove(target);
   currentUser = user;
+  currentSource = saved ? (keepLoggedIn ? "local" : "session") : "memory";
   emit();
 };
 
@@ -74,6 +112,7 @@ export const logout = () => {
   remove(getLocal);
   remove(getSession);
   currentUser = null;
+  currentSource = null;
   emit();
 };
 

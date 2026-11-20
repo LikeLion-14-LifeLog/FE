@@ -12,6 +12,76 @@ export type JobPosting = {
   bookmarkCount: number;
 };
 
+/** 서버 공고 카드를 화면용으로 변환한 값 (GET /api/job-postings) */
+export type JobPostingCard = {
+  id: string;
+  title: string;
+  isClosed: boolean;
+  company: string;
+  companySize: string | null;
+  industry: string | null;
+  education: string | null;
+  location: string | null;
+  /** 만원 단위. 서버 연봉 모델 준비 전이라 현재 null */
+  salaryMin: number | null;
+  salaryMax: number | null;
+  /** 상시 채용이면 null */
+  daysLeft: number | null;
+  bookmarkCount: number;
+  bookmarked: boolean;
+};
+
+/** 서버 공고 상세를 화면용으로 변환한 값 (GET /api/job-postings/{id}) */
+export type JobPostingDetail = {
+  id: string;
+  title: string;
+  isClosed: boolean;
+  company: string;
+  /** 업종·기업 규모 (없으면 null) */
+  companyDescription: string | null;
+  position: string;
+  /** 원본 급여 문구 (없으면 null) */
+  payText: string | null;
+  location: string | null;
+  address: string | null;
+  employmentType: string;
+  education: string | null;
+  /** "YYYY-MM-DD" 또는 "YYYY-MM-DDTHH:mm:ss". 상시 채용이면 null */
+  closesAt: string | null;
+  /** 지났으면 음수, 상시 채용이면 null */
+  daysLeft: number | null;
+  /** 본문 섹션. lines 는 줄 단위 텍스트 */
+  sections: { title: string; lines: string[] }[];
+  applyUrl: string | null;
+  bookmarkCount: number;
+  bookmarked: boolean;
+};
+
+export type DesiredJob = {
+  code: string;
+  name: string;
+};
+
+export type JobRegion =
+  | "SEOUL"
+  | "SEOUL_PANGYO"
+  | "GYEONGGI"
+  | "INCHEON"
+  | "BUSAN"
+  | "DAEGU"
+  | "GWANGJU"
+  | "DAEJEON"
+  | "ULSAN"
+  | "SEJONG"
+  | "GANGWON"
+  | "CHUNGBUK"
+  | "CHUNGNAM"
+  | "JEONBUK"
+  | "JEONNAM"
+  | "GYEONGBUK"
+  | "GYEONGNAM"
+  | "JEJU";
+
 export type JobTab = "recommended" | "saved" | "offers";
 
 export type JobSort = "latest" | "popular";
