@@ -21,6 +21,8 @@ export type SearchItem = {
   name: string;
   /** 서버 검색 응답으로 선택했을 때만 채우는 PK. mock key에서 추론 금지. */
   id?: number;
+  /** 직무 검색 결과의 직업 코드 */
+  code?: string;
   description?: string;
   category?: MajorField;
   tab?: string;
@@ -29,6 +31,7 @@ export type SearchItem = {
 export const fromJob = (v: JobSearchRecord): SearchItem => ({
   key: `job-${v.jobId}`,
   id: v.jobId,
+  code: v.code,
   name: v.name,
   description: v.subCategory.name,
   tab: v.mainCategory.code,

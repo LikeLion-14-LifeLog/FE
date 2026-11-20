@@ -6,6 +6,8 @@ type RequirementListProps = {
   items: string[];
   /** brand: 추천 경험처럼 teal 톤으로 강조 */
   tone?: "default" | "brand";
+  /** 항목이 없을 때 안내 문구 (표본 부족·비로그인 등) */
+  emptyText?: string;
 };
 
 const RequirementList = ({
@@ -13,6 +15,7 @@ const RequirementList = ({
   icon,
   items,
   tone = "default",
+  emptyText = "-",
 }: RequirementListProps) => {
   const itemClass = tone === "brand" ? "text-teal-700" : "text-slate-700";
   const dividerClass = tone === "brand" ? "border-teal-50" : "border-slate-50";
@@ -25,6 +28,9 @@ const RequirementList = ({
         </span>
         {title}
       </p>
+      {items.length === 0 && (
+        <p className="pl-1.5 text-[13px] leading-[19.5px] text-slate-400">{emptyText}</p>
+      )}
       <ul className="flex flex-col gap-2 pl-1.5">
         {items.map((item, i) => (
           <li

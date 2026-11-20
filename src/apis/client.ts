@@ -73,3 +73,15 @@ export const unwrap = <T>(body: ApiResponse<T>): T => {
   if (!body.success) throw new ApiError(body.message, null, body.code);
   return body.data;
 };
+
+/** 화면에서 쓰기 쉬운 오류 정보. ApiError 가 아니면 빈 값 (status·code·message 모두 undefined) */
+export const toApiError = (
+  error: unknown,
+): { status?: number; code?: string; message?: string } =>
+  error instanceof ApiError
+    ? {
+        status: error.status ?? undefined,
+        code: error.code ?? undefined,
+        message: error.message || undefined,
+      }
+    : {};
