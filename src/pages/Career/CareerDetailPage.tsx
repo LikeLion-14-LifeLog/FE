@@ -129,7 +129,7 @@ const CareerDetail = ({
           <div className="flex flex-col gap-6">
             <SectionTitle>관측 간격 및 연봉 변화 통계</SectionTitle>
             <TimingDistribution
-              title="직업코드 변화 관측 간격 분포"
+              title="직업 이동 관측 간격 분포"
               items={detail.timing}
             />
             <div className="flex flex-col gap-3 border-t border-slate-100 pt-[18px]">

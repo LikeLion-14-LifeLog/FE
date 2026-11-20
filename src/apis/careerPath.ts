@@ -16,6 +16,25 @@ import type {
   CareerSalaryFilters,
 } from "@/types/careerRoute";
 
+/** 분류표에 이름이 없는 직업은 서버가 "직업코드 1234" 로 주는데, 화면에는 코드를 보이지 않는다 */
+const UNKNOWN_JOB_NAME = "분류 외 직업";
+const CODE_NAME = /^직업코드\s*\d+$/;
+const NAME_KEYS = new Set(["sourceName", "targetName", "label"]);
+
+/** 응답 안의 직업명(sourceName·targetName·그래프 label)에서 코드 대체 이름을 바꾼다 */
+function hideJobCodes<T>(data: T): T {
+  if (Array.isArray(data)) return data.map(hideJobCodes) as T;
+  if (!data || typeof data !== "object") return data;
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      NAME_KEYS.has(key) && typeof value === "string" && CODE_NAME.test(value.trim())
+        ? UNKNOWN_JOB_NAME
+        : hideJobCodes(value),
+    ]),
+  ) as T;
+}
+
 /**
  * 직업코드별 관측 이동 경로 조회.
  * fromCode 를 넘기면 해당 출발 직업의 경로만 내려온다 (명세 외, 서버 응답의 fromCode 필드로 확인).
@@ -30,7 +49,7 @@ export async function getCareerRoutes(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "직업 이동 경로를 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /**
@@ -47,7 +66,7 @@ export async function getPersonalizedCareerRoutes(
   );
   if (!data.success || !data.data || !Array.isArray(data.data.routes))
     throw new Error(data.message ?? "내 전공 맞춤 경로를 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /**
@@ -69,7 +88,7 @@ export async function getPersonalizedCareerGraph(
     !Array.isArray(data.data.edges)
   )
     throw new Error(data.message ?? "내 전공 맞춤 경로 그래프를 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /** 개인화 경로 상세 분석 — 내 전공 계열 기준 한 경로의 연봉·관측 간격·스펙 비교·추천 (로그인 필요) */
@@ -84,7 +103,7 @@ export async function getPersonalizedRouteAnalysis(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "경로 분석을 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /**
@@ -102,7 +121,7 @@ export async function getCareerRouteSalaryAnalysis(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "경로 연봉 분석을 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /**
@@ -120,7 +139,7 @@ export async function getCareerRouteDetail(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "직업 이동 경로 상세를 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /**
@@ -158,7 +177,7 @@ export async function getCareerGraph(
   );
   if (!data.success || !data.data)
     throw new Error(data.message ?? "연도별 커리어 경로 그래프를 불러오지 못했습니다.");
-  return data.data;
+  return hideJobCodes(data.data);
 }
 
 /** 검증 전 탐색 데이터 상태 — 이 상태의 paths 는 공식 커리어 지도에 노출하지 않는다 */
@@ -230,7 +249,7 @@ export async function getYearlyCodeHistories(
     { signal: options.signal, timeout: 30_000 },
   );
   if (!Array.isArray(data))
-    throw new Error("응답자별 직업코드 이력을 불러오지 못했습니다.");
+    throw new Error("응답자별 직업 이력을 불러오지 못했습니다.");
   return data.map(parseYearlyCodeHistory).filter((points) => points.length > 0);
 }
 

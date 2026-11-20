@@ -214,7 +214,7 @@ export function buildCareerRouteTree(
     start: {
       label: "출발 직업",
       title: rootName,
-      description: `직업코드 ${rootCode} · 이동 경로 ${rootRoutes.length}개`,
+      description: `이동 경로 ${rootRoutes.length}개`,
     },
     firstJobs,
     nextSteps,
