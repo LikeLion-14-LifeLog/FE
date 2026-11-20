@@ -1,6 +1,5 @@
-import { apiClient } from "@/apis/client";
+import { apiClient, unwrap, type ApiResponse } from "@/apis/client";
 import { getAccessToken } from "@/store/authStore";
-import type { ApiResponse } from "@/types/spec/api";
 import type {
   LoginRequest,
   LoginResponse,
@@ -14,7 +13,7 @@ export async function signup(body: SignupRequest): Promise<SignupResponse> {
     "/api/auth/signup",
     body,
   );
-  return data.data;
+  return unwrap(data);
 }
 
 /** 이메일 로그인 — Access Token 발급 */
@@ -23,7 +22,7 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
     "/api/auth/login",
     body,
   );
-  return data.data;
+  return unwrap(data);
 }
 
 /** GET /api/auth/email/check 응답 data */
