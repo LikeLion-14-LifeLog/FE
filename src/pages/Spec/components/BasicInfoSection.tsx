@@ -47,7 +47,7 @@ export default function BasicInfoSection({ value, onChange, residentialAreas }: 
         </div>
       </div>
       {searchOpen && <SearchModal kind="job" onSelect={(item) => onChange({
-        ...value, jobId: item.id ?? null, jobName: item.name,
+        ...value, jobId: item.id ?? null, jobName: item.name, jobCode: item.code,
       })} onClose={() => setSearchOpen(false)} />}
     </section>
   );

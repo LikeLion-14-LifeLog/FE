@@ -5,9 +5,11 @@ import {
   getSpecFormOptions,
   getSpecProfile,
   saveSpecProfile,
+  saveSpecProfileMock,
   type SpecProfileDraft,
 } from "@/apis/spec";
 import { getAccessToken, useCurrentUser } from "@/store/authStore";
+import { saveDefaultCareerJobOnce } from "@/store/defaultCareerJobStore";
 import type { SpecFormOptions } from "@/types/spec/profile";
 import BasicInfoSection from "./components/BasicInfoSection";
 import EducationSection from "./components/EducationSection";
@@ -40,7 +42,7 @@ const emptyProfile = (): SpecProfileDraft => ({
   experiences: [],
 });
 
-function SpecFormPage() {
+function SpecFormPage({ email }: { email: string | undefined }) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<SpecProfileDraft>(emptyProfile);
   const [options, setOptions] = useState<SpecFormOptions | null>(null);
@@ -115,6 +117,21 @@ function SpecFormPage() {
     setNotice("");
   };
 
+  /**
+   * 저장 후 화면 밖에서 쓰는 사본을 남긴다.
+   * - 처음 등록한 희망 직무 → 커리어 경로 출발 직업 기본값
+   * - 스펙 사본(sessionStorage) → 대시보드·연봉 조건 서랍의 조회 실패 시 대체값
+   */
+  const rememberSaved = async () => {
+    if (!email) return;
+    saveDefaultCareerJobOnce(email, {
+      jobId: profile.basicInfo.jobId,
+      code: profile.basicInfo.jobCode,
+      name: profile.basicInfo.jobName,
+    });
+    await saveSpecProfileMock(profile, email).catch(() => undefined);
+  };
+
   const handleSave = async () => {
     if (saving || starting || needsReload) return;
 
@@ -141,6 +158,7 @@ function SpecFormPage() {
       }
 
       await saveSpecProfile(profile, accessToken);
+      await rememberSaved();
       saved = true;
 
       const savedProfile = await getSpecProfile(accessToken);
@@ -183,6 +201,7 @@ function SpecFormPage() {
       if (!token) throw new Error("로그인이 필요합니다.");
 
       await saveSpecProfile(profile, token);
+      await rememberSaved();
       const { runId } = await startAnalysis(token);
       if (!Number.isSafeInteger(runId) || runId <= 0) {
         throw new Error("분석 실행 응답이 올바르지 않습니다.");
@@ -301,5 +320,5 @@ function SpecFormPage() {
 export default function SpecPage() {
   const email = useCurrentUser()?.email;
 
-  return <SpecFormPage key={email ?? "guest"} />;
+  return <SpecFormPage key={email ?? "guest"} email={email} />;
 }
